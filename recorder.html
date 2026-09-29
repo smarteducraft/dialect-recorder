@@ -58,11 +58,13 @@
   document.querySelector('#promptText').textContent = prompt;
 
   let stream = null, mediaRecorder = null, chunks = [], blob = null, objectUrl = '';
-  let startedAt = 0, clockId = null, autoStopId = null, audioCtx = null, analyser = null, rafId = null;
+  let startedAt = 0, recordedDurationMs = 0, clockId = null, autoStopId = null, audioCtx = null, analyser = null, rafId = null;
+  let deliveryTimer = null;
 
   startBtn.addEventListener('click', startRecording);
   stopBtn.addEventListener('click', stopRecording);
   sendBtn.addEventListener('click', sendToOpener);
+  window.addEventListener('message', onDeliveryAck);
 
   async function startRecording(){
     clearError();
@@ -84,6 +86,9 @@
       mediaRecorder = mime ? new MediaRecorder(stream,{mimeType:mime}) : new MediaRecorder(stream);
       chunks = [];
       blob = null;
+      recordedDurationMs = 0;
+      if (deliveryTimer) clearTimeout(deliveryTimer);
+      deliveryTimer = null;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       preview.style.display = 'none';
       sendBtn.disabled = true;
@@ -109,6 +114,9 @@
   }
 
   function stopRecording(){
+    if (startedAt && !recordedDurationMs) {
+      recordedDurationMs = Math.max(0, Date.now() - startedAt);
+    }
     if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
     if (clockId) clearInterval(clockId);
     if (autoStopId) clearTimeout(autoStopId);
@@ -135,7 +143,7 @@
     sendBtn.disabled = false;
     orb.classList.remove('rec');
     orb.textContent = '✅';
-    const sec = Math.max(.1,(Date.now()-startedAt)/1000);
+    const sec = Math.max(.1,(recordedDurationMs || (Date.now()-startedAt))/1000);
     status.textContent = '녹음 완료 (' + sec.toFixed(1) + '초). 재생해 보고 이 음성 사용하기를 눌러 주세요.';
   }
 
@@ -158,12 +166,20 @@
         sessionId,
         audioBase64:base64,
         mimeType:blob.type || 'audio/webm',
-        durationMs:Math.max(0,Date.now()-startedAt)
+        // 녹음 종료 시점의 실제 길이를 사용합니다. 재생·검토 시간은 포함하지 않습니다.
+        durationMs:recordedDurationMs || Math.max(0,Date.now()-startedAt)
       };
       try {
         window.opener.postMessage(message, openerOrigin || '*');
-        status.textContent = '전달 완료! 이 창은 닫아도 됩니다.';
-        setTimeout(() => window.close(), 650);
+
+        // index.html에서 DIALECT_AUDIO_ACK가 오면 그때 창을 닫습니다.
+        // GitHub app.html → Apps Script → recorder.html처럼 중첩된 구조에서도
+        // 음성이 실제로 도착한 것을 확인한 후 닫기 때문에 더 안정적입니다.
+        if (deliveryTimer) clearTimeout(deliveryTimer);
+        deliveryTimer = setTimeout(() => {
+          status.textContent = '전달 확인이 지연되고 있습니다. AI 분석 화면에 녹음 완료가 표시되었는지 확인해 주세요.';
+          sendBtn.disabled = false;
+        }, 3000);
       } catch(e) {
         showError('음성을 전달하지 못했습니다: ' + e.message);
         sendBtn.disabled = false;
@@ -171,6 +187,17 @@
     };
     reader.onerror = () => { showError('녹음 데이터를 읽지 못했습니다.'); sendBtn.disabled = false; };
     reader.readAsDataURL(blob);
+  }
+
+  function onDeliveryAck(event){
+    if (!event.data || event.data.type !== 'DIALECT_AUDIO_ACK') return;
+    if (event.data.sessionId !== sessionId) return;
+    if (openerOrigin !== '*' && event.origin !== openerOrigin) return;
+
+    if (deliveryTimer) clearTimeout(deliveryTimer);
+    deliveryTimer = null;
+    status.textContent = '전달 완료! AI 분석 화면으로 돌아갑니다.';
+    setTimeout(() => window.close(), 450);
   }
 
   function chooseMimeType(){
