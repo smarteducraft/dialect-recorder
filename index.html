@@ -1,114 +1,644 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
+
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>AI 표준어·방언 판별기</title>
   <style>
     :root{
-      /* 첨부된 화면 기준 Google Apps Script 안내 상단바 높이입니다.
-         안내 바가 1~2px 남으면 59~60으로, 앱 상단이 잘리면 56~57로 조정하세요. */
-      --gas-banner-crop:58px;
-      --bg:#f5f7fb;
+      --bg:#f5f7fb;--card:#fff;--text:#1d2433;--muted:#667085;--line:#e6eaf0;
+      --primary:#3859e8;--primary2:#6b7cf6;--good:#169b62;--warn:#e48a15;--danger:#d92d20;
+      --shadow:0 14px 40px rgba(23,34,64,.08);--radius:22px;
     }
     *{box-sizing:border-box}
-    html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg)}
-    body{font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    body{margin:0;background:linear-gradient(180deg,#eef3ff 0,#f7f9fc 280px,#f7f9fc 100%);color:var(--text);font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .wrap{width:min(1080px,calc(100% - 28px));margin:0 auto;padding:32px 0 56px}
+    .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:22px}
+    .brand{display:flex;gap:16px;align-items:center}
+    .logo{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--primary),#8d5df4);display:grid;place-items:center;color:white;font-size:30px;box-shadow:0 12px 28px rgba(56,89,232,.28)}
+    h1{font-size:clamp(26px,4vw,38px);margin:0 0 7px;letter-spacing:-.04em}
+    .hero p{margin:0;color:var(--muted);line-height:1.65}
+    .badge{display:inline-flex;align-items:center;gap:7px;background:#eefbf4;color:#137a4f;border:1px solid #cceedd;border-radius:999px;padding:9px 12px;font-size:13px;font-weight:700;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+    .card{background:rgba(255,255,255,.96);border:1px solid rgba(222,228,238,.9);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+    .card h2{font-size:20px;margin:0 0 8px;letter-spacing:-.02em}
+    .sub{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 18px}
+    .prompt-list{display:grid;gap:10px}
+    .prompt{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px 15px;display:flex;gap:12px;align-items:flex-start;color:var(--text)}
+    .prompt:hover{border-color:#bcc8ff;background:#f9faff}
+    .prompt.active{border-color:var(--primary);background:#f1f4ff;box-shadow:0 0 0 3px rgba(56,89,232,.08)}
+    .prompt .num{flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:#eef1f7;display:grid;place-items:center;font-weight:800;font-size:13px;color:#4e5f7a}
+    .prompt.active .num{background:var(--primary);color:#fff}
+    .prompt strong{display:block;font-size:14px;margin-bottom:3px}.prompt span{font-size:13px;color:var(--muted);line-height:1.45}
+    .recorder{display:flex;flex-direction:column;min-height:100%}
+    .record-panel{border:1px dashed #cfd6e5;background:#fbfcff;border-radius:18px;padding:20px;text-align:center}
+    .mic-orb{width:94px;height:94px;border-radius:50%;margin:4px auto 14px;background:linear-gradient(145deg,#edf1ff,#fff);display:grid;place-items:center;font-size:36px;border:1px solid #dfe5f5;box-shadow:inset 0 0 0 8px #f7f8fe}
+    .mic-orb.ready{animation:pulse 1.8s infinite}.mic-orb.has-audio{background:#eefbf4;border-color:#cceedd}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(56,89,232,.11),inset 0 0 0 8px #f7f8fe}50%{box-shadow:0 0 0 14px rgba(56,89,232,0),inset 0 0 0 8px #f7f8fe}}
+    .status-title{font-weight:800;font-size:17px;margin-bottom:6px}.status-text{font-size:13px;color:var(--muted);line-height:1.55;min-height:42px}
+    .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+    .btn{border:0;border-radius:13px;padding:12px 16px;font-weight:800;transition:.15s;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;box-shadow:0 10px 22px rgba(56,89,232,.2)}
+    .btn.secondary{background:#eef2f8;color:#35435c}
+    .btn.analyze{width:100%;margin-top:14px;background:#151b2b;color:#fff;padding:14px 16px}
+    .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+    .file-row{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px;align-items:center;flex-wrap:wrap}
+    .file-label{font-size:13px;color:var(--muted)}
+    #audioPreview{width:100%;margin-top:14px;display:none}
+    .notice{margin-top:14px;background:#fff8e8;color:#78551a;border:1px solid #f4dfac;border-radius:14px;padding:11px 13px;font-size:12.5px;line-height:1.55;text-align:left}
+    .setup{display:none;margin-bottom:20px;background:#fff5f4;color:#8a271f;border:1px solid #f4cac6;border-radius:16px;padding:14px 16px;line-height:1.55;font-size:14px}
+    .setup.show{display:block}
+    .result{margin-top:20px;display:none}.result.show{display:block}
+    .result-head{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}
+    .result-label{font-size:27px;font-weight:900;letter-spacing:-.04em}.confidence{border-radius:999px;background:#eef2f8;padding:8px 11px;font-size:12px;font-weight:800;color:#44516a;white-space:nowrap}
+    .transcript{background:#f7f9fd;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}.eyebrow{font-size:12px;color:#7a869a;font-weight:800;margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em}.quote{font-size:18px;font-weight:700;line-height:1.55;word-break:keep-all}
+    .score-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:15px 0 20px}.score-row{display:grid;grid-template-columns:86px 1fr 40px;gap:9px;align-items:center}.score-name{font-size:13px;font-weight:700}.bar{height:10px;background:#edf0f5;border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5672ef,#8d68ed);border-radius:99px;transition:width .55s ease}.score-val{text-align:right;font-size:12px;font-weight:800;color:#53627a}
+    .section{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}.section h3{font-size:16px;margin:0 0 12px}.features{display:grid;gap:10px}.feature{border:1px solid var(--line);border-radius:14px;padding:13px 14px}.feature-top{display:flex;gap:8px;align-items:center;margin-bottom:5px}.tag{font-size:11px;font-weight:800;background:#eef1f7;color:#4e5f78;border-radius:999px;padding:5px 8px}.evidence{font-size:14px;font-weight:800}.explain{font-size:13px;color:var(--muted);line-height:1.55}
+    .info-box{background:#f8f9fc;border-radius:14px;padding:14px 15px;line-height:1.6;font-size:14px}.info-box.good{background:#f0fbf5}.caution{margin-top:15px;font-size:12.5px;color:#7a6471;line-height:1.55;background:#fff7fa;border:1px solid #f3dfe7;border-radius:13px;padding:12px 13px}
+    .loader{display:none;margin-top:14px;padding:16px;background:#f7f9fd;border-radius:15px;text-align:center}.loader.show{display:block}.dots{display:inline-flex;gap:6px}.dots i{width:8px;height:8px;background:var(--primary);border-radius:50%;animation:b 1s infinite}.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}@keyframes b{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+    .analysis-alert{display:none;margin-top:14px;border:1px solid #f1d2cc;background:#fff7f5;border-radius:15px;padding:14px 15px;text-align:left}.analysis-alert.show{display:block}.analysis-alert strong{display:block;color:#8a271f;margin-bottom:5px}.analysis-alert p{margin:0;color:#76514b;font-size:13px;line-height:1.55}.analysis-alert .btn{margin-top:10px;padding:9px 12px}
+    .model-meta{margin-top:6px;font-size:12px;color:#7a869a;font-weight:700;line-height:1.45}
+    .footer{text-align:center;color:#8a94a6;font-size:12px;margin-top:24px;line-height:1.6}
+    @media(max-width:820px){.grid{grid-template-columns:1fr}.hero{flex-direction:column}.badge{align-self:flex-start}.score-grid{grid-template-columns:1fr}.card{padding:19px}.wrap{width:min(100% - 20px,1080px);padding-top:20px}.result-head{align-items:flex-start}.result-label{font-size:24px}}
 
-    /* Apps Script 페이지 전체를 58px 위로 올리고, 바깥 영역을 잘라 냅니다.
-       iframe 내부 DOM을 수정하는 방식이 아니므로 교차 출처 보안 정책에도 걸리지 않습니다. */
-    .viewport{position:fixed;inset:0;overflow:hidden;background:var(--bg)}
-    #gasFrame{
-      position:absolute;
-      left:0;
-      top:calc(-1 * var(--gas-banner-crop));
-      width:100%;
-      height:calc(100% + var(--gas-banner-crop));
-      border:0;
-      display:block;
-      background:var(--bg);
-    }
-
-    .loading{
-      position:fixed;inset:0;display:grid;place-items:center;z-index:10;
-      background:linear-gradient(180deg,#eef3ff,#f7f9fc);color:#475467;
-      transition:opacity .2s ease,visibility .2s ease;
-    }
-    .loading.hide{opacity:0;visibility:hidden;pointer-events:none}
-    .loading-box{text-align:center;font-size:14px;line-height:1.6}
-    .spinner{width:34px;height:34px;margin:0 auto 12px;border:4px solid #dfe5f5;border-top-color:#3859e8;border-radius:50%;animation:spin .8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    .setup{
-      display:none;position:fixed;inset:0;z-index:20;place-items:center;padding:24px;
-      background:#f7f9fc;color:#1d2433;
-    }
-    .setup.show{display:grid}
-    .setup-card{width:min(720px,100%);background:#fff;border:1px solid #e4e8f0;border-radius:20px;padding:26px;box-shadow:0 16px 45px rgba(26,38,70,.1)}
-    .setup h1{margin:0 0 12px;font-size:24px}.setup p{line-height:1.7;color:#667085}.setup code{word-break:break-all;background:#f3f5f8;padding:2px 5px;border-radius:6px}
+    .example-heading{font-size:16px;margin:22px 0 12px}.example-heading small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:5px}
+    .prompt{background:#f8faff;cursor:default;padding:16px}.prompt:hover{background:#f8faff;border-color:var(--line)}
+    .prompt strong{font-size:15px}.prompt span{line-height:1.65}.speaking-tip{background:#eff8f3;border-radius:12px;padding:13px;font-size:14px;line-height:1.6;color:#286848}
+    .sub,.status-text{font-size:15px;line-height:1.75}.btn{min-height:46px}
+    button:focus-visible,label:focus-visible{outline:3px solid #8b9aff;outline-offset:3px}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
   </style>
 </head>
 <body>
-  <div id="loading" class="loading">
-    <div class="loading-box"><div class="spinner"></div>AI 표준어·방언 판별기를 불러오는 중...</div>
-  </div>
+  <main class="wrap">
+    <section class="hero">
+      <div class="brand">
+        <div class="logo">🎙️</div>
+        <div>
+          <h1>AI 표준어·방언 판별기</h1>
+          <p>내가 말한 문장의 <b>어휘·어미·발음·억양</b>을 AI와 함께 탐구해 보세요.</p>
+        </div>
+      </div>
+      <div class="badge">🔒 이 앱은 음성 파일을 별도로 저장하지 않습니다</div>
+    </section>
 
-  <div class="viewport">
-    <iframe
-      id="gasFrame"
-      title="AI 표준어·방언 판별기"
-      allow="clipboard-read; clipboard-write"
-      referrerpolicy="strict-origin-when-cross-origin"></iframe>
-  </div>
+    <div id="setupBox" class="setup"></div>
 
-  <section id="setup" class="setup">
-    <div class="setup-card">
-      <h1>Apps Script 웹앱 주소를 설정해 주세요.</h1>
-      <p><code>app.html</code> 파일의 <code>GAS_WEB_APP_URL</code> 값에 현재 배포된 Apps Script의 <code>/exec</code> 주소를 넣으면 됩니다.</p>
-      <p>예: <code>https://script.google.com/macros/s/AKfycb.../exec</code></p>
-    </div>
-  </section>
+    <section class="grid">
+      <article class="card">
+        <h2>1. 표준어나 방언으로 1~2문장 말해 보세요.</h2>
+        <p class="sub">문장을 그대로 읽기보다, 실제 친구에게 말하듯 자연스럽게 1~2문장 말하는 것이 좋습니다.</p>
+        <h3 class="example-heading">예시 상황 <small>말할 내용이 떠오르지 않을 때 참고하세요</small></h3><div class="prompt-list"><div class="prompt"><span class="num">1</span><span><strong>친구에게 안부 묻기</strong><span>어디에 가는지, 밥은 먹었는지 궁금한 것을 물어보세요.</span></span></div><div class="prompt"><span class="num">2</span><span><strong>오늘 있었던 일</strong><span>학교나 집에서 있었던 재미있는 일을 이야기해 보세요.</span></span></div><div class="prompt"><span class="num">3</span><span><strong>함께 놀자고 제안하기</strong><span>쉬는 시간이나 주말에 친구와 하고 싶은 일을 말해 보세요.</span></span></div><div class="prompt"><span class="num">4</span><span><strong>친구에게 부탁하기</strong><span>준비물을 빌리거나 도움이 필요한 상황을 떠올려 보세요.</span></span></div><div class="prompt"><span class="num">5</span><span><strong>좋아하는 것 소개하기</strong><span>좋아하는 음식, 놀이, 장소와 그 이유를 이야기해 보세요.</span></span></div></div><p class="speaking-tip">어떤 상황이든 괜찮아요. 평소 사용하는 말투로 편하게 말해 보세요.</p>
+      </article>
+
+      <article class="card recorder">
+        <h2>2. 음성을 녹음 하세요.</h2>
+        <p class="sub">이 화면에서 바로 녹음하세요. 5~15초를 권장하며, 최대 25초까지 녹음할 수 있습니다.</p>
+
+        <div class="record-panel">
+          <div id="micOrb" class="mic-orb ready">🎤</div>
+          <div id="statusTitle" class="status-title">녹음 준비</div>
+          <div id="statusText" class="status-text">녹음 시작을 누르고 마이크 사용을 허용해 주세요.</div>
+          <div class="actions">
+            <button id="recordBtn" class="btn primary" type="button">🎙️ 녹음 시작</button>
+            <button id="resetBtn" class="btn secondary" type="button" disabled>↻ 다시 녹음</button>
+          </div>
+
+          <audio id="audioPreview" controls></audio>
+
+          <div class="file-row">
+            <span class="file-label">기존 녹음 파일도 사용할 수 있어요</span>
+            <label class="btn secondary" style="padding:9px 12px" for="audioFile">📁 음성 파일 선택</label>
+            <input id="audioFile" type="file" accept="audio/*" hidden>
+          </div>
+        </div>
+
+        <button id="analyzeBtn" class="btn analyze" type="button" disabled>✨ AI 분석하기</button>
+
+        <div id="loader" class="loader" aria-live="polite">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div style="font-weight:800;margin-top:8px">AI가 음성과 말의 특징을 분석하고 있어요</div>
+          <div id="loaderText" style="font-size:12px;color:var(--muted);margin-top:5px">음성을 듣고 문장을 확인하는 중...</div>
+        </div>
+
+        <div id="analysisAlert" class="analysis-alert" aria-live="polite">
+          <strong id="analysisAlertTitle">AI 분석을 잠시 기다려 주세요</strong>
+          <p id="analysisAlertText"></p>
+          <button id="retryAnalyzeBtn" class="btn secondary" type="button">↻ 같은 음성으로 다시 분석하기</button>
+        </div>
+
+        <div class="notice">💡 <b>중요:</b> 결과의 점수는 화자의 출신 지역을 나타내는 확률이 아닙니다. 이번 발화에서 나타난 표준어·지역 방언 특징을 AI가 학습용으로 추정한 값입니다.</div>
+      </article>
+    </section>
+
+    <section id="result" class="card result">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow">AI 분석 결과</div>
+          <div id="primaryLabel" class="result-label">판별 결과</div>
+          <div id="modelMeta" class="model-meta"></div>
+        </div>
+        <div id="confidence" class="confidence">신뢰도</div>
+      </div>
+
+      <div class="transcript">
+        <div class="eyebrow">AI가 들은 문장</div>
+        <div id="transcript" class="quote"></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">이번 발화의 언어 특징 점수 · AI 추정</div>
+        <div id="scoreGrid" class="score-grid"></div>
+      </div>
+
+      <div class="section">
+        <h3>🔍 AI가 찾은 특징</h3>
+        <div id="features" class="features"></div>
+      </div>
+
+      <div class="section">
+        <h3>🔊 억양·발음 관찰</h3>
+        <div id="acoustic" class="info-box"></div>
+      </div>
+
+      <div class="section">
+        <h3>📝 표준어로 바꾸어 말하면</h3>
+        <div id="standardVersion" class="info-box good"></div>
+      </div>
+
+      <div class="section">
+        <h3>💡 한눈에 정리</h3>
+        <div id="summary" class="info-box"></div>
+        <div id="caution" class="caution"></div>
+      </div>
+    </section>
+
+    <div class="footer"><b>화면 내 녹음 · v2026.10.09-2</b><br>방언은 틀린 말이 아니라 지역의 역사와 문화를 담고 있는 언어입니다.<br>한두 문장만으로는 정확히 구분하기 어려우므로 여러 상황에서 반복해 탐구해 보세요.</div>
+  </main>
 
 <script>
+
+// Set the existing deployment /exec URL here. Never put an API key in this file.
+const GAS_WEB_APP_URL='PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE'; // 기존 /exec 주소를 입력하세요
+const channel=crypto.randomUUID(); const pending=new Map(); let bridgeReady=false, bridgeWindow=null, bridgeOrigin=null;
+const bridge=document.createElement('iframe');bridge.hidden=true;bridge.title='AI 분석 연결';document.body.append(bridge);
+if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) bridge.src=GAS_WEB_APP_URL+'?bridge=1&channel='+encodeURIComponent(channel);
+window.addEventListener('message',e=>{
+  if(!/^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(e.origin))return;
+  const m=e.data||{}; if(m.channel!==channel)return;
+  if(m.type==='DIALECT_BRIDGE_READY'){
+    bridgeWindow=e.source;bridgeOrigin=e.origin;bridgeReady=true;
+    for(const p of pending.values()) if(!p.sent){p.sent=true;bridgeWindow.postMessage(p.msg,e.origin);}
+  }else if(m.type==='DIALECT_RPC_RESULT'&&e.source===bridgeWindow){
+    const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);
+    if(m.error)p.fail({message:m.error});else p.ok(m.result);
+  }
+});
+function rpc(){
+  let ok=()=>{},fail=()=>{};
+  const send=(method,payload)=>{
+    const id=crypto.randomUUID(),msg={type:'DIALECT_RPC',channel,id,method,payload};
+    const p={msg,ok,fail,sent:false,timer:setTimeout(()=>{pending.delete(id);fail({message:'분석 연결을 확인해 주세요. Apps Script 배포 주소와 FRONTEND_ORIGIN 설정이 필요합니다.'});},method==='analyzeAudio'?300000:20000)};
+    pending.set(id,p);
+    if(bridgeReady){p.sent=true;bridgeWindow.postMessage(msg,bridgeOrigin);}
+  };
+  const api={withSuccessHandler(f){ok=f;return api},withFailureHandler(f){fail=f;return api},getAppConfig(){send('getAppConfig')},analyzeAudio(p){send('analyzeAudio',p)}};
+  return api;
+}
+
 (() => {
-  /* ============================================================
-     ★ 이 한 줄만 본인의 Apps Script /exec 주소로 바꾸세요.
-     ============================================================ */
-  const GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzZPkZPS82mikpnX5pZwlB_eon-vAvA4svvzrObYLlDIIVLH3lDYkoGW3IMKI2yL9Ii/exec';
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
 
-  const frame = document.querySelector('#gasFrame');
-  const loading = document.querySelector('#loading');
-  const setup = document.querySelector('#setup');
+  let appConfig = null;
+  let selectedPrompt = '표준어나 방언으로 평소 말투를 사용하여 자유롭게 1~2문장 말하기';
+  let audioBase64 = '';
+  let audioMimeType = '';
+  let audioDurationMs = 0;
+  let audioObjectUrl = '';
+  let recorderOrigin = '';
+  let activeSessionId = '';
+  let loaderTimer = null;
+  let pendingAnalyzeTimer = null;
+  let analysisRunId = 0;
+  let busyRetryCount = 0;
+  let transientRetryCount = 0;
 
-  // 필요할 때 URL의 ?gas=... 값으로 임시 테스트할 수도 있습니다.
-  const qs = new URLSearchParams(location.search);
-  const queryUrl = qs.get('gas') || '';
-  const gasUrl = queryUrl || GAS_WEB_APP_URL;
+  const recordBtn = $('#recordBtn');
+  const resetBtn = $('#resetBtn');
+  const analyzeBtn = $('#analyzeBtn');
+  const audioPreview = $('#audioPreview');
+  const audioFile = $('#audioFile');
+  const resultEl = $('#result');
+  const loader = $('#loader');
+  const analysisAlert = $('#analysisAlert');
+  const retryAnalyzeBtn = $('#retryAnalyzeBtn');
 
-  // ?crop=60처럼 호출하면 상단바 잘라내기 높이를 임시 조정할 수 있습니다.
-  const crop = Number(qs.get('crop'));
-  if (Number.isFinite(crop) && crop >= 0 && crop <= 100) {
-    document.documentElement.style.setProperty('--gas-banner-crop', crop + 'px');
+  init();
+
+  function init(){
+    bindEvents();
+
+    // GitHub Pages의 app.html 안에 포함된 경우, 바깥 페이지에 준비 완료를 알립니다.
+    // 기능 동작에는 필수는 아니지만 임베드 상태 확인과 향후 확장을 위해 남겨 둡니다.
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({type:'DIALECT_APP_READY'}, '*');
+      }
+    } catch(e) {}
+
+    rpc()
+      .withSuccessHandler(onConfig)
+      .withFailureHandler(err => showSetup('설정 정보를 불러오지 못했습니다: ' + getErr(err)))
+      .getAppConfig();
   }
 
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec(?:[?#].*)?$/.test(gasUrl)) {
-    loading.classList.add('hide');
-    setup.classList.add('show');
-    return;
+  function bindEvents(){
+
+
+    recordBtn.addEventListener('click', openRecorder);
+    resetBtn.addEventListener('click', resetAudio);
+    analyzeBtn.addEventListener('click', analyze);
+    retryAnalyzeBtn.addEventListener('click', () => beginAnalyze(true));
+    audioFile.addEventListener('change', onFileSelected);
+
   }
 
-  frame.src = gasUrl;
-  frame.addEventListener('load', () => {
-    // Apps Script 내부 앱이 완전히 그려질 시간을 조금 주고 로딩 화면을 제거합니다.
-    setTimeout(() => loading.classList.add('hide'), 250);
-  });
-
-  // index.html이 준비 완료 메시지를 보내면 더 빨리 로딩 화면을 닫습니다.
-  window.addEventListener('message', event => {
-    if (event.data && event.data.type === 'DIALECT_APP_READY') {
-      loading.classList.add('hide');
+  function onConfig(cfg){
+    appConfig = cfg || {};
+    if (!appConfig.hasApiKey) {
+      showSetup('⚠️ Apps Script의 <b>Script Properties</b>에 <code>GEMINI_API_KEY</code>를 등록해 주세요.');
     }
-  });
+
+    if (appConfig.recorderUrl) {
+      try { recorderOrigin = new URL(appConfig.recorderUrl).origin; } catch(e) {}
+    }
+  }
+
+  function showSetup(html){
+    const box = $('#setupBox');
+    box.innerHTML = html;
+    box.classList.add('show');
+  }
+
+
+  let mediaRecorder=null, micStream=null, clock=null, chunks=[], startedAt=0, recording=false, requesting=false, takeId=0;
+  function releaseMic(){
+    clearInterval(clock); clock=null;
+    if(micStream) micStream.getTracks().forEach(t=>t.stop());
+    micStream=null;
+  }
+  async function openRecorder(){
+    if(recording){ mediaRecorder.stop(); recordBtn.disabled=true; return; }
+    if(requesting) return;
+    if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+      setStatus('마이크를 사용할 수 없어요','HTTPS 주소에서 최신 Chrome 또는 Edge로 접속하거나 음성 파일을 선택해 주세요.',false);return;
+    }
+    requesting=true; recordBtn.disabled=true;
+    const id=++takeId;
+    try{
+      micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      resetAudio(); activeSessionId=makeSessionId(); chunks=[];
+      const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));
+      mediaRecorder=new MediaRecorder(micStream,mime?{mimeType:mime}:{});
+      mediaRecorder.ondataavailable=e=>{if(e.data.size) chunks.push(e.data)};
+      mediaRecorder.onerror=()=>{takeId++; recording=false;audioFile.disabled=false;releaseMic();recordBtn.disabled=false;recordBtn.textContent='🎙️ 녹음 시작';setStatus('녹음 실패','다시 녹음하거나 음성 파일을 선택해 주세요.',false);};
+      mediaRecorder.onstop=()=>{
+        const durationMs=Math.min(Date.now()-startedAt,25000);
+        recording=false;audioFile.disabled=false;releaseMic();recordBtn.disabled=false;recordBtn.textContent='🎙️ 녹음 시작';
+        if(id!==takeId)return;
+        const blob=new Blob(chunks,{type:mediaRecorder.mimeType||'audio/webm'});
+        if(!blob.size){setStatus('녹음 확인 필요','음성이 녹음되지 않았어요. 다시 시도해 주세요.',false);return;}
+        const reader=new FileReader();
+        reader.onload=()=>{if(id===takeId)receiveAudio({base64:String(reader.result).split(',')[1],mimeType:blob.type,durationMs,blob});};
+        reader.readAsDataURL(blob);
+      };
+      mediaRecorder.start();startedAt=Date.now();recording=true;
+      recordBtn.disabled=false;recordBtn.textContent='■ 녹음 중지'; resetBtn.disabled=true;audioFile.disabled=true;
+      $('#micOrb').textContent='🔴';
+      const tick=()=>{const sec=(Date.now()-startedAt)/1000;setStatus('녹음 중 · '+sec.toFixed(1)+'초','친구에게 말하듯 편하게 이야기하세요. 끝나면 녹음 중지를 눌러 주세요.',false);if(sec>=25&&mediaRecorder.state==='recording')mediaRecorder.stop();};
+      clock=setInterval(tick,100);tick();
+    }catch(err){
+      releaseMic();setStatus('마이크 연결을 확인해 주세요',err.name==='NotAllowedError'?'주소창의 사이트 권한에서 마이크를 허용한 뒤 다시 시도해 주세요.':err.name==='NotFoundError'?'연결된 마이크가 없습니다. 음성 파일을 선택해도 됩니다.':'마이크를 시작하지 못했습니다. 다른 앱의 마이크 사용을 확인하거나 파일을 선택해 주세요.',false);
+    }finally{requesting=false;if(!recording)recordBtn.disabled=false;}
+  }
+  window.addEventListener('pagehide',()=>{takeId++;releaseMic();});
+  function onFileSelected(e){
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      alert('음성 파일을 선택해 주세요.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert('8MB 이하의 짧은 음성 파일을 선택해 주세요.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const base64 = dataUrl.split(',')[1] || '';
+      receiveAudio({base64, mimeType:file.type || 'audio/webm', durationMs:0, blob:file});
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function receiveAudio(data){
+    audioFile.disabled=false;
+    audioBase64 = data.base64 || '';
+    audioMimeType = data.mimeType || 'audio/webm';
+    audioDurationMs = Number(data.durationMs || 0);
+
+    if (!audioBase64) {
+      setStatus('녹음 확인 필요', '음성 데이터가 전달되지 않았습니다.', false);
+      return;
+    }
+
+    try {
+      const blob = data.blob || base64ToBlob(audioBase64, audioMimeType);
+      if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+      audioObjectUrl = URL.createObjectURL(blob);
+      audioPreview.src = audioObjectUrl;
+      audioPreview.style.display = 'block';
+    } catch(e) {
+      audioPreview.style.display = 'none';
+    }
+
+    $('#micOrb').classList.remove('ready');
+    $('#micOrb').classList.add('has-audio');
+    $('#micOrb').textContent = '✅';
+    const sec = audioDurationMs ? ' (' + (audioDurationMs/1000).toFixed(1) + '초)' : '';
+    setStatus('녹음 완료' + sec, '음성을 들어 본 뒤 AI 분석하기 버튼을 눌러 주세요.', true);
+    analyzeBtn.disabled = false;
+    resetBtn.disabled = false;
+    resultEl.classList.remove('show');
+  }
+
+  function resetAudio(){
+    audioFile.disabled=false;
+    cancelPendingAnalyze();
+    analysisRunId++;
+    hideAnalysisError();
+    audioBase64 = '';
+    audioMimeType = '';
+    audioDurationMs = 0;
+    activeSessionId = '';
+    audioFile.value = '';
+    if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+    audioObjectUrl = '';
+    audioPreview.removeAttribute('src');
+    audioPreview.style.display = 'none';
+    $('#micOrb').className = 'mic-orb ready';
+    $('#micOrb').textContent = '🎤';
+    setStatus('녹음 준비', '녹음 시작을 누르고 마이크 사용을 허용해 주세요.', false);
+    analyzeBtn.disabled = true;
+    resetBtn.disabled = true;
+    resultEl.classList.remove('show');
+    stopLoader();
+  }
+
+  function analyze(){
+    beginAnalyze(false);
+  }
+
+  function beginAnalyze(isManualRetry){
+    if (!audioBase64) return;
+
+    cancelPendingAnalyze();
+    hideAnalysisError();
+    resultEl.classList.remove('show');
+
+    const runId = ++analysisRunId;
+    busyRetryCount = 0;
+    transientRetryCount = 0;
+    setAnalyzingUi(true);
+    startLoader();
+
+    const classroom = (appConfig && appConfig.classroom) || {};
+    const minMs = Number(classroom.jitterMinMs || 0);
+    const maxMs = Number(classroom.jitterMaxMs || 0);
+    const delay = isManualRetry
+      ? randomBetween(350, 1400)
+      : randomBetween(Math.max(0, minMs), Math.max(minMs, maxMs));
+
+    if (delay >= 800) {
+      $('#loaderText').textContent = '30명 동시 접속을 위해 요청 시간을 분산하고 있어요. 잠시만 기다려 주세요.';
+    }
+
+    pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+  }
+
+  function invokeAnalysis(runId){
+    if (runId !== analysisRunId || !audioBase64) return;
+    pendingAnalyzeTimer = null;
+    $('#loaderText').textContent = 'AI 서버에 음성을 보내고 있어요. 혼잡하면 예비 모델로 자동 전환합니다.';
+
+    rpc()
+      .withSuccessHandler(res => handleAnalyzeResponse(runId, res))
+      .withFailureHandler(err => {
+        if (runId !== analysisRunId) return;
+        finishAnalyzeUi();
+        showAnalysisError(
+          '분석 요청을 전송하지 못했습니다.',
+          'Apps Script 연결이 일시적으로 원활하지 않습니다. 녹음은 유지되어 있으니 같은 음성으로 다시 분석해 주세요.'
+        );
+      })
+      .analyzeAudio({
+        audioBase64,
+        mimeType: audioMimeType,
+        durationMs: audioDurationMs,
+        activityPrompt: selectedPrompt,
+        sessionId: activeSessionId
+      });
+  }
+
+  function handleAnalyzeResponse(runId, res){
+    if (runId !== analysisRunId) return;
+    res = res || {};
+    const classroom = (appConfig && appConfig.classroom) || {};
+
+    // 서버의 8개 분석 슬롯이 모두 사용 중이면 녹음을 유지한 채 자동 대기/재시도
+    if (res.busy) {
+      const maxBusyRetry = Number(classroom.busyRetryMax || 8);
+      if (busyRetryCount < maxBusyRetry) {
+        busyRetryCount++;
+        const delay = Math.max(1200, Number(res.retryAfterMs || 3000)) + randomBetween(0, 1200);
+        $('#loaderText').textContent = '친구들의 음성을 순서대로 처리 중이에요. 자동 재시도 ' + busyRetryCount + '/' + maxBusyRetry;
+        pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+        return;
+      }
+
+      finishAnalyzeUi();
+      showAnalysisError(
+        '현재 분석 요청이 많이 몰렸어요.',
+        '녹음은 그대로 유지되어 있습니다. 잠시 뒤 아래 버튼으로 같은 음성을 다시 분석해 주세요.'
+      );
+      return;
+    }
+
+    // 1순위 + 예비 모델까지 모두 일시적으로 실패한 경우, 클라이언트에서 한 번 더 분산 재시도
+    if (!res.ok && res.retryable) {
+      const maxTransientRetry = Number(classroom.transientRetryMax || 1);
+      if (transientRetryCount < maxTransientRetry) {
+        transientRetryCount++;
+        const delay = Math.max(4500, Number(res.retryAfterMs || 6500)) + randomBetween(0, 1500);
+        $('#loaderText').textContent = 'AI 서버가 혼잡해 잠시 기다린 뒤 예비 모델까지 다시 확인하고 있어요.';
+        pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+        return;
+      }
+    }
+
+    if (!res.ok) {
+      finishAnalyzeUi();
+      showAnalysisError(
+        res.retryable ? 'AI 서버가 아직 혼잡합니다.' : 'AI 분석 중 확인이 필요한 문제가 있습니다.',
+        res.error || '잠시 후 다시 시도해 주세요.'
+      );
+      return;
+    }
+
+    finishAnalyzeUi();
+    renderResult(res.data, res.meta);
+  }
+
+  function setAnalyzingUi(on){
+    analyzeBtn.disabled = on;
+    recordBtn.disabled = on;
+    resetBtn.disabled = on || !audioBase64;
+    audioFile.disabled = on;
+  }
+
+  function finishAnalyzeUi(){
+    stopLoader();
+    setAnalyzingUi(false);
+  }
+
+  function cancelPendingAnalyze(){
+    if (pendingAnalyzeTimer) clearTimeout(pendingAnalyzeTimer);
+    pendingAnalyzeTimer = null;
+  }
+
+  function showAnalysisError(title, text){
+    $('#analysisAlertTitle').textContent = title || '분석을 완료하지 못했습니다.';
+    $('#analysisAlertText').textContent = text || '잠시 후 다시 시도해 주세요.';
+    analysisAlert.classList.add('show');
+  }
+
+  function hideAnalysisError(){
+    analysisAlert.classList.remove('show');
+    $('#analysisAlertText').textContent = '';
+  }
+
+  function renderResult(d, meta){
+    d = d || {};
+    meta = meta || {};
+    $('#primaryLabel').textContent = d.primaryLabel || '판별 어려움';
+    if (meta.model) {
+      const tries = Number(meta.requestCount || 0);
+      const prefix = meta.fallbackUsed ? '예비 AI 모델 사용' : '분석 모델';
+      $('#modelMeta').textContent = prefix + ' · ' + humanModelName(meta.model) + (tries > 1 ? ' · 서버 요청 ' + tries + '회' : '');
+    } else {
+      $('#modelMeta').textContent = '';
+    }
+    $('#confidence').textContent = '신뢰도 · ' + (d.confidence || '낮음');
+    $('#transcript').textContent = d.transcript || '';
+    $('#acoustic').textContent = d.acousticObservation || '';
+    $('#standardVersion').textContent = d.standardVersion || '';
+    $('#summary').textContent = d.summary || '';
+    $('#caution').textContent = (d.caution || '') + (meta && meta.audioSaved === false ? ' · 이 앱 코드는 음성 파일을 별도 저장하지 않습니다.' : '');
+
+    const labels = [
+      ['standard','표준어'],['gyeongsang','경상'],['jeolla','전라'],
+      ['chungcheong','충청'],['gangwon','강원'],['jeju','제주']
+    ];
+    const scores = d.scores || {};
+    $('#scoreGrid').innerHTML = labels.map(([key,name]) => {
+      const v = Math.max(0, Math.min(100, Number(scores[key] || 0)));
+      return `<div class="score-row"><div class="score-name">${name}</div><div class="bar"><i style="width:${v}%"></i></div><div class="score-val">${v}%</div></div>`;
+    }).join('');
+
+    const fs = Array.isArray(d.features) ? d.features : [];
+    $('#features').innerHTML = fs.length
+      ? fs.map(f => `<div class="feature"><div class="feature-top"><span class="tag">${esc(f.category || '특징')}</span><span class="evidence">${esc(f.evidence || '')}</span></div><div class="explain">${esc(f.explanation || '')}</div></div>`).join('')
+      : '<div class="info-box">이번 짧은 발화에서는 뚜렷한 지역 방언 근거를 찾기 어려웠습니다.</div>';
+
+    resultEl.classList.add('show');
+    setTimeout(() => resultEl.scrollIntoView({behavior:'smooth', block:'start'}), 50);
+  }
+
+  function startLoader(){
+    loader.classList.add('show');
+    const msgs = [
+      '친구들의 요청이 겹치지 않도록 순서를 조정하는 중...',
+      '음성을 듣고 문장을 확인하는 중...',
+      '어휘와 어미 특징을 살펴보는 중...',
+      '혼잡하면 예비 AI 모델로 자동 전환하는 중...',
+      '발음과 억양 특징을 종합하는 중...',
+      '학생용 설명을 정리하는 중...'
+    ];
+    let i = 0;
+    $('#loaderText').textContent = msgs[0];
+    loaderTimer = setInterval(() => {
+      i = (i + 1) % msgs.length;
+      $('#loaderText').textContent = msgs[i];
+    }, 1500);
+  }
+
+  function stopLoader(){
+    loader.classList.remove('show');
+    if (loaderTimer) clearInterval(loaderTimer);
+    loaderTimer = null;
+  }
+
+  function setStatus(title, text, hasAudio){
+    $('#statusTitle').textContent = title;
+    $('#statusText').textContent = text;
+    if (hasAudio) $('#micOrb').classList.add('has-audio');
+  }
+
+  function base64ToBlob(base64, mime){
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], {type:mime || 'audio/webm'});
+  }
+
+  function makeSessionId(){
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  function esc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  function randomBetween(min, max){
+    min = Math.ceil(Number(min) || 0);
+    max = Math.floor(Number(max) || min);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function humanModelName(model){
+    const map = {
+      'gemini-3.8-flash':'Gemini 3.8 Flash',
+      'gemini-3.7-flash':'Gemini 3.7 Flash',
+      'gemini-3.6-flash':'Gemini 3.6 Flash',
+      'gemini-3.5-flash':'Gemini 3.5 Flash',
+      'gemini-3.5-flash-lite':'Gemini 3.5 Flash-Lite'
+    };
+    return map[model] || String(model || '');
+  }
+
+  function getErr(err){
+    return err && err.message ? err.message : String(err || '알 수 없는 오류');
+  }
 })();
 </script>
 </body>
