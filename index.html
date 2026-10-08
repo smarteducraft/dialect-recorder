@@ -183,7 +183,7 @@
 <script>
 
 // Set the existing deployment /exec URL here. Never put an API key in this file.
-const GAS_WEB_APP_URL='PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE'; // 기존 /exec 주소를 입력하세요
+const GAS_WEB_APP_URL='https://script.google.com/macros/s/AKfycbzZPkZPS82mikpnX5pZwlB_eon-vAvA4svvzrObYLlDIIVLH3lDYkoGW3IMKI2yL9Ii/exec'; // 기존 /exec 주소를 입력하세요
 const channel=crypto.randomUUID(); const pending=new Map(); let bridgeReady=false, bridgeWindow=null, bridgeOrigin=null;
 const bridge=document.createElement('iframe');bridge.hidden=true;bridge.title='AI 분석 연결';document.body.append(bridge);
 if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) bridge.src=GAS_WEB_APP_URL+'?bridge=1&channel='+encodeURIComponent(channel);
