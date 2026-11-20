@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>말씨탐정 · AI 표준어·방언 판별기</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;--card:#fff;--text:#1d2433;--muted:#667085;--line:#e6eaf0;
+      --primary:#3859e8;--primary2:#6b7cf6;--good:#169b62;--warn:#e48a15;--danger:#d92d20;
+      --shadow:0 14px 40px rgba(23,34,64,.08);--radius:22px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#eef3ff 0,#f7f9fc 280px,#f7f9fc 100%);color:var(--text);font-family:Pretendard,"Noto Sans KR",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input{font:inherit}
+    button{cursor:pointer}
+    .wrap{width:min(1080px,calc(100% - 28px));margin:0 auto;padding:32px 0 56px}
+    .hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:22px}
+    .brand{display:flex;gap:16px;align-items:center}
+    .logo{width:64px;height:64px;border-radius:20px;background:linear-gradient(135deg,var(--primary),#8d5df4);display:grid;place-items:center;color:white;font-size:30px;box-shadow:0 12px 28px rgba(56,89,232,.28)}
+    h1{font-size:clamp(26px,4vw,38px);margin:0 0 7px;letter-spacing:-.04em}
+    .hero p{margin:0;color:var(--muted);line-height:1.65}
+    .badge{display:inline-flex;align-items:center;gap:7px;background:#eefbf4;color:#137a4f;border:1px solid #cceedd;border-radius:999px;padding:9px 12px;font-size:13px;font-weight:700;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:20px}
+    .card{background:rgba(255,255,255,.96);border:1px solid rgba(222,228,238,.9);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px}
+    .card h2{font-size:20px;margin:0 0 8px;letter-spacing:-.02em}
+    .sub{font-size:14px;color:var(--muted);line-height:1.6;margin:0 0 18px}
+    .prompt-list{display:grid;gap:10px}
+    .prompt{width:100%;text-align:left;border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px 15px;display:flex;gap:12px;align-items:flex-start;color:var(--text)}
+    .prompt:hover{border-color:#bcc8ff;background:#f9faff}
+    .prompt.active{border-color:var(--primary);background:#f1f4ff;box-shadow:0 0 0 3px rgba(56,89,232,.08)}
+    .prompt .num{flex:0 0 28px;width:28px;height:28px;border-radius:9px;background:#eef1f7;display:grid;place-items:center;font-weight:800;font-size:13px;color:#4e5f7a}
+    .prompt.active .num{background:var(--primary);color:#fff}
+    .prompt strong{display:block;font-size:14px;margin-bottom:3px}.prompt span{font-size:13px;color:var(--muted);line-height:1.45}
+    .recorder{display:flex;flex-direction:column;min-height:100%}
+    .record-panel{border:1px dashed #cfd6e5;background:#fbfcff;border-radius:18px;padding:20px;text-align:center}
+    .mic-orb{width:94px;height:94px;border-radius:50%;margin:4px auto 14px;background:linear-gradient(145deg,#edf1ff,#fff);display:grid;place-items:center;font-size:36px;border:1px solid #dfe5f5;box-shadow:inset 0 0 0 8px #f7f8fe}
+    .mic-orb.ready{animation:pulse 1.8s infinite}.mic-orb.has-audio{background:#eefbf4;border-color:#cceedd}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(56,89,232,.11),inset 0 0 0 8px #f7f8fe}50%{box-shadow:0 0 0 14px rgba(56,89,232,0),inset 0 0 0 8px #f7f8fe}}
+    .status-title{font-weight:800;font-size:17px;margin-bottom:6px}.status-text{font-size:13px;color:var(--muted);line-height:1.55;min-height:42px}
+    .actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+    .btn{border:0;border-radius:13px;padding:12px 16px;font-weight:800;transition:.15s;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.primary{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;box-shadow:0 10px 22px rgba(56,89,232,.2)}
+    .btn.secondary{background:#eef2f8;color:#35435c}
+    .btn.analyze{width:100%;margin-top:14px;background:#151b2b;color:#fff;padding:14px 16px}
+    .btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+    .file-row{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:flex;justify-content:center;gap:8px;align-items:center;flex-wrap:wrap}
+    .file-label{font-size:13px;color:var(--muted)}
+    #audioPreview{width:100%;margin-top:14px;display:none}
+    .notice{margin-top:14px;background:#fff8e8;color:#78551a;border:1px solid #f4dfac;border-radius:14px;padding:11px 13px;font-size:12.5px;line-height:1.55;text-align:left}
+    .setup{display:none;margin-bottom:20px;background:#fff5f4;color:#8a271f;border:1px solid #f4cac6;border-radius:16px;padding:14px 16px;line-height:1.55;font-size:14px}
+    .setup.show{display:block}
+    .result{margin-top:20px;display:none}.result.show{display:block}
+    .result-head{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:18px}
+    .result-label{font-size:27px;font-weight:900;letter-spacing:-.04em}.confidence{border-radius:999px;background:#eef2f8;padding:8px 11px;font-size:12px;font-weight:800;color:#44516a;white-space:nowrap}
+    .transcript{background:#f7f9fd;border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}.eyebrow{font-size:12px;color:#7a869a;font-weight:800;margin-bottom:7px;text-transform:uppercase;letter-spacing:.05em}.quote{font-size:18px;font-weight:700;line-height:1.55;word-break:keep-all}
+    .score-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin:15px 0 20px}.score-row{display:grid;grid-template-columns:86px 1fr 40px;gap:9px;align-items:center}.score-name{font-size:13px;font-weight:700}.bar{height:10px;background:#edf0f5;border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#5672ef,#8d68ed);border-radius:99px;transition:width .55s ease}.score-val{text-align:right;font-size:12px;font-weight:800;color:#53627a}
+    .section{border-top:1px solid var(--line);padding-top:18px;margin-top:18px}.section h3{font-size:16px;margin:0 0 12px}.features{display:grid;gap:10px}.feature{border:1px solid var(--line);border-radius:14px;padding:13px 14px}.feature-top{display:flex;gap:8px;align-items:center;margin-bottom:5px}.tag{font-size:11px;font-weight:800;background:#eef1f7;color:#4e5f78;border-radius:999px;padding:5px 8px}.evidence{font-size:14px;font-weight:800}.explain{font-size:13px;color:var(--muted);line-height:1.55}
+    .info-box{background:#f8f9fc;border-radius:14px;padding:14px 15px;line-height:1.6;font-size:14px}.info-box.good{background:#f0fbf5}.caution{margin-top:15px;font-size:12.5px;color:#7a6471;line-height:1.55;background:#fff7fa;border:1px solid #f3dfe7;border-radius:13px;padding:12px 13px}
+    .loader{display:none;margin-top:14px;padding:16px;background:#f7f9fd;border-radius:15px;text-align:center}.loader.show{display:block}.dots{display:inline-flex;gap:6px}.dots i{width:8px;height:8px;background:var(--primary);border-radius:50%;animation:b 1s infinite}.dots i:nth-child(2){animation-delay:.15s}.dots i:nth-child(3){animation-delay:.3s}@keyframes b{0%,80%,100%{transform:scale(.6);opacity:.4}40%{transform:scale(1);opacity:1}}
+    .analysis-alert{display:none;margin-top:14px;border:1px solid #f1d2cc;background:#fff7f5;border-radius:15px;padding:14px 15px;text-align:left}.analysis-alert.show{display:block}.analysis-alert strong{display:block;color:#8a271f;margin-bottom:5px}.analysis-alert p{margin:0;color:#76514b;font-size:13px;line-height:1.55}.analysis-alert .btn{margin-top:10px;padding:9px 12px}
+    .model-meta{margin-top:6px;font-size:12px;color:#7a869a;font-weight:700;line-height:1.45}
+    .footer{text-align:center;color:#8a94a6;font-size:12px;margin-top:24px;line-height:1.6}
+    @media(max-width:820px){.grid{grid-template-columns:1fr}.hero{flex-direction:column}.badge{align-self:flex-start}.score-grid{grid-template-columns:1fr}.card{padding:19px}.wrap{width:min(100% - 20px,1080px);padding-top:20px}.result-head{align-items:flex-start}.result-label{font-size:24px}}
+
+    .example-heading{font-size:16px;margin:22px 0 12px}.example-heading small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:5px}
+    .prompt{background:#f8faff;cursor:default;padding:16px}.prompt:hover{background:#f8faff;border-color:var(--line)}
+    .prompt strong{font-size:15px}.prompt span{line-height:1.65}.speaking-tip{background:#eff8f3;border-radius:12px;padding:13px;font-size:14px;line-height:1.6;color:#286848}
+    .sub,.status-text{font-size:15px;line-height:1.75}.btn{min-height:46px}
+    button:focus-visible,label:focus-visible{outline:3px solid #8b9aff;outline-offset:3px}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+    /* ===== 체험부스용 확대 레이아웃 (16인치 노트북 기준) ===== */
+    body{font-size:17px}
+    .wrap{width:min(1280px,calc(100% - 40px));padding:22px 0 40px}
+    .hero{align-items:center;margin-bottom:18px}
+    .logo{width:72px;height:72px;font-size:36px}
+    h1{font-size:clamp(32px,3.6vw,46px)}
+    .hero p{font-size:17px}
+    .hero .subtitle{font-size:15px;font-weight:800;color:var(--primary);margin:0 0 2px;letter-spacing:.02em}
+    .top-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+    .tool-btn{border:1px solid #d7deec;background:#fff;color:#35435c;border-radius:12px;padding:9px 13px;font-weight:800;font-size:14px;min-height:42px}
+    .tool-btn:hover{background:#f3f6ff}
+    .card h2{font-size:23px}
+    .prompt strong{font-size:16px}.prompt span{font-size:14.5px}
+    .status-title{font-size:21px}
+    .mic-orb{width:112px;height:112px;font-size:44px}
+    #recordBtn{font-size:20px;padding:15px 26px;min-height:60px;border-radius:16px}
+    #resetBtn{font-size:17px;min-height:60px;border-radius:16px}
+    .btn.analyze{font-size:21px;min-height:64px;border-radius:16px}
+    .result-label{font-size:34px}
+    .quote{font-size:21px}
+    .score-name{font-size:15px}.score-val{font-size:14px}.bar{height:13px}
+    .evidence{font-size:16px}.explain,.info-box{font-size:15.5px}
+
+    /* ===== 무입력 자동 복귀 안내 ===== */
+    .idle-toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,140%);z-index:900;background:#151b2b;color:#fff;border-radius:18px;padding:16px 18px 16px 22px;display:flex;gap:16px;align-items:center;box-shadow:0 18px 50px rgba(0,0,0,.3);font-size:17px;font-weight:700;transition:transform .35s ease}
+    .idle-toast.show{transform:translate(-50%,0)}
+    .idle-toast b{color:#ffd76a;font-size:22px}
+    .idle-toast button{border:0;border-radius:12px;background:#ffd76a;color:#1d2433;font-weight:900;padding:11px 16px;font-size:16px}
+
+    /* ===== 대기 화면 ===== */
+    .attract{position:fixed;inset:0;z-index:1000;overflow:hidden;cursor:pointer;user-select:none;color:#fff;
+      background:radial-gradient(circle at 18% 20%,#5b6cff 0,transparent 45%),radial-gradient(circle at 85% 80%,#c55df6 0,transparent 42%),linear-gradient(135deg,#1b2370 0%,#2b2f8f 45%,#4a2390 100%);
+      display:flex;flex-direction:column;opacity:1;transition:opacity .45s ease,visibility .45s}
+    .attract.hide{opacity:0;visibility:hidden;pointer-events:none}
+    .bubbles{position:absolute;inset:0;pointer-events:none}
+    .bubble{position:absolute;bottom:-80px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+      border-radius:22px 22px 22px 6px;padding:10px 18px;font-weight:800;white-space:nowrap;color:rgba(255,255,255,.42);animation:rise linear infinite}
+    @keyframes rise{0%{transform:translateY(0) rotate(-2deg);opacity:0}10%{opacity:1}85%{opacity:1}100%{transform:translateY(-118vh) rotate(3deg);opacity:0}}
+    .attract-inner{position:relative;flex:1;display:grid;grid-template-columns:1.05fr .95fr;gap:4vw;align-items:center;width:min(1320px,92vw);margin:0 auto;padding:4vh 0 2vh}
+    .a-kicker{display:inline-flex;gap:8px;align-items:center;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);border-radius:999px;padding:9px 16px;font-weight:800;font-size:clamp(14px,1.3vw,18px)}
+    .a-title{font-size:clamp(72px,9.6vw,150px);line-height:1;margin:2.4vh 0 1.6vh;font-weight:900;letter-spacing:-.06em;
+      background:linear-gradient(180deg,#fff 30%,#ffe08a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 24px rgba(0,0,0,.25))}
+    .a-title .glass{display:inline-block;-webkit-text-fill-color:initial;color:initial;font-size:.72em;vertical-align:.08em;margin-left:.08em;animation:sway 3.2s ease-in-out infinite;transform-origin:30% 70%}
+    @keyframes sway{0%,100%{transform:rotate(-12deg)}50%{transform:rotate(12deg) translateX(.06em)}}
+    .a-lead{text-shadow:0 2px 14px rgba(20,24,90,.55);font-size:clamp(22px,2.3vw,34px);font-weight:800;line-height:1.4;margin:0 0 3vh;word-break:keep-all}
+    .a-lead em{font-style:normal;color:#ffe08a}
+    .a-steps{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4vh}
+    .a-step{display:flex;gap:10px;align-items:center;background:rgba(10,14,50,.32);border:1px solid rgba(255,255,255,.18);border-radius:16px;padding:12px 16px;font-size:clamp(16px,1.45vw,21px);font-weight:800}
+    .a-step i{font-style:normal;width:32px;height:32px;border-radius:10px;background:#ffe08a;color:#2b2f8f;display:grid;place-items:center;font-size:17px;font-weight:900}
+    .a-cta{display:inline-flex;align-items:center;gap:14px;background:#ffe08a;color:#1f2470;border-radius:999px;padding:20px 38px;font-size:clamp(24px,2.5vw,36px);font-weight:900;
+      box-shadow:0 0 0 0 rgba(255,224,138,.6);animation:ctaPulse 1.8s ease-out infinite;border:0}
+    @keyframes ctaPulse{0%{box-shadow:0 0 0 0 rgba(255,224,138,.55)}100%{box-shadow:0 0 0 28px rgba(255,224,138,0)}}
+    .a-cta-hint{margin-top:16px;font-size:clamp(14px,1.2vw,17px);opacity:.82;font-weight:600}
+
+    /* 데모 카드 */
+    .demo{position:relative;background:#fff;color:var(--text);border-radius:30px;padding:28px 30px 26px;box-shadow:0 30px 80px rgba(8,10,40,.45);min-height:min(560px,64vh);display:flex;flex-direction:column}
+    .demo-tag{position:absolute;top:-16px;left:28px;background:#ff6b8b;color:#fff;font-weight:900;border-radius:999px;padding:7px 15px;font-size:15px;box-shadow:0 8px 20px rgba(255,107,139,.35)}
+    .demo-head{display:flex;align-items:center;gap:14px;margin:6px 0 16px}
+    .demo-avatar{width:58px;height:58px;border-radius:18px;background:#eef1ff;display:grid;place-items:center;font-size:32px;flex:0 0 auto}
+    .demo-who{font-weight:900;font-size:19px}.demo-who small{display:block;color:var(--muted);font-weight:700;font-size:14px;margin-top:2px}
+    .demo-rec{margin-left:auto;display:flex;align-items:center;gap:8px;font-weight:900;color:#d92d20;font-size:15px;opacity:0;transition:opacity .3s}
+    .demo-rec i{width:12px;height:12px;border-radius:50%;background:#d92d20;animation:blink 1s infinite}
+    @keyframes blink{50%{opacity:.25}}
+    .demo.s-rec .demo-rec{opacity:1}
+    .demo-speech{background:#f3f5fb;border-radius:20px 20px 20px 6px;padding:18px 20px;font-size:clamp(24px,2.3vw,32px);font-weight:900;min-height:96px;line-height:1.35;word-break:keep-all;letter-spacing:-.02em}
+    .demo-speech .caret{display:inline-block;width:3px;height:1em;background:var(--primary);vertical-align:-.12em;margin-left:3px;animation:blink .8s infinite}
+    .wave{display:flex;gap:5px;align-items:center;justify-content:center;height:62px;margin:14px 0 6px}
+    .wave span{width:7px;border-radius:9px;background:linear-gradient(180deg,#6b7cf6,#3859e8);height:8px;transition:height .12s}
+    .demo-scan{display:none;align-items:center;justify-content:center;gap:12px;height:62px;margin:14px 0 6px;font-weight:900;font-size:19px;color:var(--primary)}
+    .demo-scan .mag{font-size:34px;animation:scan 1.1s ease-in-out infinite alternate}
+    @keyframes scan{from{transform:translateX(-26px) rotate(-10deg)}to{transform:translateX(26px) rotate(10deg)}}
+    .demo.s-scan .wave{display:none}.demo.s-scan .demo-scan{display:flex}
+    .demo.s-result .wave{display:none}
+    .demo-result{opacity:0;transform:translateY(12px);transition:.45s ease;margin-top:auto}
+    .demo.s-result .demo-result{opacity:1;transform:none}
+    .demo-verdict{display:flex;align-items:baseline;gap:12px;margin:10px 0 14px;flex-wrap:wrap}
+    .demo-verdict .lbl{font-size:15px;font-weight:800;color:var(--muted)}
+    .demo-verdict .val{font-size:clamp(30px,3vw,42px);font-weight:900;letter-spacing:-.04em;color:#3245c9}
+    .demo-bars{display:grid;grid-template-columns:1fr 1fr;gap:9px 22px}
+    .demo-bars .r{display:grid;grid-template-columns:52px 1fr 46px;gap:8px;align-items:center;font-size:15px;font-weight:800}
+    .demo-bars .b{height:12px;background:#edf0f5;border-radius:99px;overflow:hidden}
+    .demo-bars .b i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#5672ef,#8d68ed);transition:width .9s cubic-bezier(.2,.8,.2,1)}
+    .demo-bars .r.top .b i{background:linear-gradient(90deg,#ff8a4c,#ff5e7e)}
+    .demo-bars .v{text-align:right;color:#53627a}
+    .demo-clue{margin-top:14px;background:#fff8e3;border:1px solid #f6e2a6;border-radius:14px;padding:11px 14px;font-size:15.5px;font-weight:700;color:#6d531a;line-height:1.5;word-break:keep-all}
+    .demo-dots{display:flex;gap:7px;justify-content:center;margin-top:16px}
+    .demo-dots i{width:9px;height:9px;border-radius:50%;background:#d7dcea;transition:.3s}.demo-dots i.on{width:26px;border-radius:9px;background:var(--primary)}
+    .attract-foot{position:relative;text-align:center;padding:0 0 2.6vh;font-size:clamp(13px,1.1vw,16px);opacity:.75;font-weight:600}
+    @media(max-width:980px){.attract-inner{grid-template-columns:1fr;gap:3vh;padding-top:3vh}.demo{min-height:auto}.a-title{font-size:clamp(60px,14vw,110px)}}
+    @media(max-height:760px){.a-steps{margin-bottom:2.4vh}.demo{padding:22px 24px}.demo-speech{min-height:80px}}
+  </style>
+</head>
+<body>
+  <!-- ===== 대기 화면 (체험부스용) ===== -->
+  <section id="attract" class="attract" role="button" tabindex="0" aria-label="말씨탐정 시작하기. 화면을 누르거나 스페이스바를 누르세요.">
+    <div id="bubbles" class="bubbles" aria-hidden="true"></div>
+    <div class="attract-inner">
+      <div>
+        <span class="a-kicker">🎙️ AI 표준어·방언 판별기</span>
+        <div class="a-title">말씨탐정<span class="glass">🔍</span></div>
+        <p class="a-lead">내 말투에 숨어 있는<br><em>지역의 단서</em>를 AI 탐정이 찾아 줘요!</p>
+        <div class="a-steps">
+          <div class="a-step"><i>1</i>한두 문장 말하기</div>
+          <div class="a-step"><i>2</i>녹음하기</div>
+          <div class="a-step"><i>3</i>AI 분석 결과 보기</div>
+        </div>
+        <button class="a-cta" type="button" tabindex="-1">👆 눌러서 시작하기</button>
+        <div class="a-cta-hint">화면 아무 곳이나 누르거나 스페이스바를 눌러도 시작돼요 · 약 1분이면 충분해요</div>
+      </div>
+      <div id="demo" class="demo" aria-hidden="true">
+        <span class="demo-tag">▶ 이렇게 체험해요 (예시)</span>
+        <div class="demo-head">
+          <div id="demoAvatar" class="demo-avatar">🧑</div>
+          <div class="demo-who"><span id="demoWho">참가자</span><small id="demoSituation">친구에게 안부 묻기</small></div>
+          <div class="demo-rec"><i></i>녹음 중</div>
+        </div>
+        <div id="demoSpeech" class="demo-speech"></div>
+        <div id="wave" class="wave"></div>
+        <div class="demo-scan"><span class="mag">🔍</span>AI 탐정이 단서를 찾는 중...</div>
+        <div class="demo-result">
+          <div class="demo-verdict"><span class="lbl">AI 판별 결과</span><span id="demoVerdict" class="val"></span></div>
+          <div id="demoBars" class="demo-bars"></div>
+          <div id="demoClue" class="demo-clue"></div>
+        </div>
+        <div id="demoDots" class="demo-dots"></div>
+      </div>
+    </div>
+    <div class="attract-foot">방언은 틀린 말이 아니라 지역의 역사와 문화를 담은 소중한 말이에요 · 녹음한 음성은 저장하지 않아요</div>
+  </section>
+
+  <div id="idleToast" class="idle-toast" role="status" aria-live="polite">
+    <span>아무 동작이 없어 <b id="idleCount">10</b>초 뒤 처음 화면으로 돌아가요</span>
+    <button id="idleStay" type="button">계속하기</button>
+  </div>
+  <main class="wrap">
+    <section class="hero">
+      <div class="brand">
+        <div class="logo">🎙️</div>
+        <div>
+          <p class="subtitle">AI 표준어·방언 판별기</p>
+          <h1>말씨탐정 🔍</h1>
+          <p>내가 말한 문장의 <b>어휘·어미·발음·억양</b>을 AI와 함께 탐구해 보세요.</p>
+        </div>
+      </div>
+      <div class="top-tools">
+        <div class="badge">🔒 음성 파일을 저장하지 않아요</div>
+        <button id="fullscreenBtn" class="tool-btn" type="button">⤢ 전체화면</button>
+        <button id="homeBtn" class="tool-btn" type="button">🏠 처음으로</button>
+      </div>
+    </section>
+
+    <div id="setupBox" class="setup"></div>
+
+    <section class="grid">
+      <article class="card">
+        <h2>1. 표준어나 방언으로 1~2문장 말해 보세요.</h2>
+        <p class="sub">문장을 그대로 읽기보다, 실제 친구에게 말하듯 자연스럽게 1~2문장 말하는 것이 좋습니다.</p>
+        <h3 class="example-heading">예시 상황 <small>말할 내용이 떠오르지 않을 때 참고하세요</small></h3><div class="prompt-list"><div class="prompt"><span class="num">1</span><span><strong>친구에게 안부 묻기</strong><span>어디에 가는지, 밥은 먹었는지 궁금한 것을 물어보세요.</span></span></div><div class="prompt"><span class="num">2</span><span><strong>오늘 있었던 일</strong><span>학교나 집에서 있었던 재미있는 일을 이야기해 보세요.</span></span></div><div class="prompt"><span class="num">3</span><span><strong>함께 놀자고 제안하기</strong><span>쉬는 시간이나 주말에 친구와 하고 싶은 일을 말해 보세요.</span></span></div><div class="prompt"><span class="num">4</span><span><strong>친구에게 부탁하기</strong><span>준비물을 빌리거나 도움이 필요한 상황을 떠올려 보세요.</span></span></div><div class="prompt"><span class="num">5</span><span><strong>좋아하는 것 소개하기</strong><span>좋아하는 음식, 놀이, 장소와 그 이유를 이야기해 보세요.</span></span></div></div><p class="speaking-tip">어떤 상황이든 괜찮아요. 평소 사용하는 말투로 편하게 말해 보세요.</p>
+      </article>
+
+      <article class="card recorder">
+        <h2>2. 음성을 녹음 하세요.</h2>
+        <p class="sub">이 화면에서 바로 녹음하세요. 5~15초를 권장하며, 최대 25초까지 녹음할 수 있습니다.</p>
+
+        <div class="record-panel">
+          <div id="micOrb" class="mic-orb ready">🎤</div>
+          <div id="statusTitle" class="status-title">녹음 준비</div>
+          <div id="statusText" class="status-text">녹음 시작을 누르고 마이크 사용을 허용해 주세요.</div>
+          <div class="actions">
+            <button id="recordBtn" class="btn primary" type="button">🎙️ 녹음 시작</button>
+            <button id="resetBtn" class="btn secondary" type="button" disabled>↻ 다시 녹음</button>
+          </div>
+
+          <audio id="audioPreview" controls></audio>
+
+          <div class="file-row">
+            <span class="file-label">기존 녹음 파일도 사용할 수 있어요</span>
+            <label class="btn secondary" style="padding:9px 12px" for="audioFile">📁 음성 파일 선택</label>
+            <input id="audioFile" type="file" accept="audio/*" hidden>
+          </div>
+        </div>
+
+        <button id="analyzeBtn" class="btn analyze" type="button" disabled>✨ AI 분석하기</button>
+
+        <div id="loader" class="loader" aria-live="polite">
+          <div class="dots"><i></i><i></i><i></i></div>
+          <div style="font-weight:800;margin-top:8px">AI가 음성과 말의 특징을 분석하고 있어요</div>
+          <div id="loaderText" style="font-size:12px;color:var(--muted);margin-top:5px">음성을 듣고 문장을 확인하는 중...</div>
+        </div>
+
+        <div id="analysisAlert" class="analysis-alert" aria-live="polite">
+          <strong id="analysisAlertTitle">AI 분석을 잠시 기다려 주세요</strong>
+          <p id="analysisAlertText"></p>
+          <button id="retryAnalyzeBtn" class="btn secondary" type="button">↻ 같은 음성으로 다시 분석하기</button>
+        </div>
+
+        <div class="notice">💡 <b>중요:</b> 결과의 점수는 화자의 출신 지역을 나타내는 확률이 아닙니다. 이번 발화에서 나타난 표준어·지역 방언 특징을 AI가 학습용으로 추정한 값입니다.</div>
+      </article>
+    </section>
+
+    <section id="result" class="card result">
+      <div class="result-head">
+        <div>
+          <div class="eyebrow">AI 분석 결과</div>
+          <div id="primaryLabel" class="result-label">판별 결과</div>
+          <div id="modelMeta" class="model-meta"></div>
+        </div>
+        <div id="confidence" class="confidence">신뢰도</div>
+      </div>
+
+      <div class="transcript">
+        <div class="eyebrow">AI가 들은 문장</div>
+        <div id="transcript" class="quote"></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">이번 발화의 언어 특징 점수 · AI 추정</div>
+        <div id="scoreGrid" class="score-grid"></div>
+      </div>
+
+      <div class="section">
+        <h3>🔍 AI가 찾은 특징</h3>
+        <div id="features" class="features"></div>
+      </div>
+
+      <div class="section">
+        <h3>🔊 억양·발음 관찰</h3>
+        <div id="acoustic" class="info-box"></div>
+      </div>
+
+      <div class="section">
+        <h3>📝 표준어로 바꾸어 말하면</h3>
+        <div id="standardVersion" class="info-box good"></div>
+      </div>
+
+      <div class="section">
+        <h3>💡 한눈에 정리</h3>
+        <div id="summary" class="info-box"></div>
+        <div id="caution" class="caution"></div>
+      </div>
+    </section>
+
+    <div class="footer"><b>말씨탐정 체험부스판 · v2026.11.21</b><br>방언은 틀린 말이 아니라 지역의 역사와 문화를 담고 있는 언어입니다.<br>한두 문장만으로는 정확히 구분하기 어려우므로 여러 상황에서 반복해 탐구해 보세요.</div>
+  </main>
+
+<script>
+
+// Set the existing deployment /exec URL here. Never put an API key in this file.
+const GAS_WEB_APP_URL='https://script.google.com/macros/s/AKfycbzZPkZPS82mikpnX5pZwlB_eon-vAvA4svvzrObYLlDIIVLH3lDYkoGW3IMKI2yL9Ii/exec';
+const channel=crypto.randomUUID(); const pending=new Map(); let bridgeReady=false, bridgeWindow=null, bridgeOrigin=null;
+const bridge=document.createElement('iframe');bridge.hidden=true;bridge.title='AI 분석 연결';document.body.append(bridge);
+if(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GAS_WEB_APP_URL)) bridge.src=GAS_WEB_APP_URL+'?bridge=1&channel='+encodeURIComponent(channel);
+window.addEventListener('message',e=>{
+  if(!/^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(e.origin))return;
+  const m=e.data||{}; if(m.channel!==channel)return;
+  if(m.type==='DIALECT_BRIDGE_READY'){
+    bridgeWindow=e.source;bridgeOrigin=e.origin;bridgeReady=true;
+    for(const p of pending.values()) if(!p.sent){p.sent=true;bridgeWindow.postMessage(p.msg,e.origin);}
+  }else if(m.type==='DIALECT_RPC_RESULT'&&e.source===bridgeWindow){
+    const p=pending.get(m.id);if(!p)return;clearTimeout(p.timer);pending.delete(m.id);
+    if(m.error)p.fail({message:m.error});else p.ok(m.result);
+  }
+});
+function rpc(){
+  let ok=()=>{},fail=()=>{};
+  const send=(method,payload)=>{
+    const id=crypto.randomUUID(),msg={type:'DIALECT_RPC',channel,id,method,payload};
+    const p={msg,ok,fail,sent:false,timer:setTimeout(()=>{pending.delete(id);fail({message:'분석 연결을 확인해 주세요. Apps Script 배포 주소와 FRONTEND_ORIGIN 설정이 필요합니다.'});},method==='analyzeAudio'?300000:20000)};
+    pending.set(id,p);
+    if(bridgeReady){p.sent=true;bridgeWindow.postMessage(msg,bridgeOrigin);}
+  };
+  const api={withSuccessHandler(f){ok=f;return api},withFailureHandler(f){fail=f;return api},getAppConfig(){send('getAppConfig')},analyzeAudio(p){send('analyzeAudio',p)}};
+  return api;
+}
+
+(() => {
+  const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
+
+  let appConfig = null;
+  let selectedPrompt = '표준어나 방언으로 평소 말투를 사용하여 자유롭게 1~2문장 말하기';
+  let audioBase64 = '';
+  let audioMimeType = '';
+  let audioDurationMs = 0;
+  let audioObjectUrl = '';
+  let recorderOrigin = '';
+  let activeSessionId = '';
+  let loaderTimer = null;
+  let pendingAnalyzeTimer = null;
+  let analysisRunId = 0;
+  let busyRetryCount = 0;
+  let transientRetryCount = 0;
+
+  const recordBtn = $('#recordBtn');
+  const resetBtn = $('#resetBtn');
+  const analyzeBtn = $('#analyzeBtn');
+  const audioPreview = $('#audioPreview');
+  const audioFile = $('#audioFile');
+  const resultEl = $('#result');
+  const loader = $('#loader');
+  const analysisAlert = $('#analysisAlert');
+  const retryAnalyzeBtn = $('#retryAnalyzeBtn');
+
+  init();
+
+  function init(){
+    bindEvents();
+
+    // GitHub Pages의 app.html 안에 포함된 경우, 바깥 페이지에 준비 완료를 알립니다.
+    // 기능 동작에는 필수는 아니지만 임베드 상태 확인과 향후 확장을 위해 남겨 둡니다.
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({type:'DIALECT_APP_READY'}, '*');
+      }
+    } catch(e) {}
+
+    rpc()
+      .withSuccessHandler(onConfig)
+      .withFailureHandler(err => showSetup('설정 정보를 불러오지 못했습니다: ' + getErr(err)))
+      .getAppConfig();
+  }
+
+  function bindEvents(){
+
+
+    recordBtn.addEventListener('click', openRecorder);
+    resetBtn.addEventListener('click', resetAudio);
+    analyzeBtn.addEventListener('click', analyze);
+    retryAnalyzeBtn.addEventListener('click', () => beginAnalyze(true));
+    audioFile.addEventListener('change', onFileSelected);
+
+  }
+
+  function onConfig(cfg){
+    appConfig = cfg || {};
+    if (!appConfig.hasApiKey) {
+      showSetup('⚠️ Apps Script의 <b>Script Properties</b>에 <code>GEMINI_API_KEY</code>를 등록해 주세요.');
+    }
+
+    if (appConfig.recorderUrl) {
+      try { recorderOrigin = new URL(appConfig.recorderUrl).origin; } catch(e) {}
+    }
+  }
+
+  function showSetup(html){
+    const box = $('#setupBox');
+    box.innerHTML = html;
+    box.classList.add('show');
+  }
+
+
+  let mediaRecorder=null, micStream=null, clock=null, chunks=[], startedAt=0, recording=false, requesting=false, takeId=0;
+  function releaseMic(){
+    clearInterval(clock); clock=null;
+    if(micStream) micStream.getTracks().forEach(t=>t.stop());
+    micStream=null;
+  }
+  async function openRecorder(){
+    if(recording){ mediaRecorder.stop(); recordBtn.disabled=true; return; }
+    if(requesting) return;
+    if(!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder){
+      setStatus('마이크를 사용할 수 없어요','HTTPS 주소에서 최신 Chrome 또는 Edge로 접속하거나 음성 파일을 선택해 주세요.',false);return;
+    }
+    requesting=true; recordBtn.disabled=true;
+    const id=++takeId;
+    try{
+      micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      resetAudio(); activeSessionId=makeSessionId(); chunks=[];
+      const mime=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus'].find(t=>MediaRecorder.isTypeSupported(t));
+      mediaRecorder=new MediaRecorder(micStream,mime?{mimeType:mime}:{});
+      mediaRecorder.ondataavailable=e=>{if(e.data.size) chunks.push(e.data)};
+      mediaRecorder.onerror=()=>{takeId++; recording=false;audioFile.disabled=false;releaseMic();recordBtn.disabled=false;recordBtn.textContent='🎙️ 녹음 시작';setStatus('녹음 실패','다시 녹음하거나 음성 파일을 선택해 주세요.',false);};
+      mediaRecorder.onstop=()=>{
+        const durationMs=Math.min(Date.now()-startedAt,25000);
+        recording=false;audioFile.disabled=false;releaseMic();recordBtn.disabled=false;recordBtn.textContent='🎙️ 녹음 시작';
+        if(id!==takeId)return;
+        const blob=new Blob(chunks,{type:mediaRecorder.mimeType||'audio/webm'});
+        if(!blob.size){setStatus('녹음 확인 필요','음성이 녹음되지 않았어요. 다시 시도해 주세요.',false);return;}
+        const reader=new FileReader();
+        reader.onload=()=>{if(id===takeId)receiveAudio({base64:String(reader.result).split(',')[1],mimeType:blob.type,durationMs,blob});};
+        reader.readAsDataURL(blob);
+      };
+      mediaRecorder.start();startedAt=Date.now();recording=true;
+      recordBtn.disabled=false;recordBtn.textContent='■ 녹음 중지'; resetBtn.disabled=true;audioFile.disabled=true;
+      $('#micOrb').textContent='🔴';
+      const tick=()=>{const sec=(Date.now()-startedAt)/1000;setStatus('녹음 중 · '+sec.toFixed(1)+'초','친구에게 말하듯 편하게 이야기하세요. 끝나면 녹음 중지를 눌러 주세요.',false);if(sec>=25&&mediaRecorder.state==='recording')mediaRecorder.stop();};
+      clock=setInterval(tick,100);tick();
+    }catch(err){
+      releaseMic();setStatus('마이크 연결을 확인해 주세요',err.name==='NotAllowedError'?'주소창의 사이트 권한에서 마이크를 허용한 뒤 다시 시도해 주세요.':err.name==='NotFoundError'?'연결된 마이크가 없습니다. 음성 파일을 선택해도 됩니다.':'마이크를 시작하지 못했습니다. 다른 앱의 마이크 사용을 확인하거나 파일을 선택해 주세요.',false);
+    }finally{requesting=false;if(!recording)recordBtn.disabled=false;}
+  }
+  window.addEventListener('pagehide',()=>{takeId++;releaseMic();});
+  // 체험부스: 대기 화면으로 돌아갈 때 다음 참가자를 위해 모든 상태를 초기화합니다.
+  window.MalssiApp = {
+    reset(){
+      takeId++;
+      if(recording && mediaRecorder){ try{ mediaRecorder.stop(); }catch(e){} }
+      recording=false; requesting=false; releaseMic();
+      recordBtn.disabled=false; recordBtn.textContent='🎙️ 녹음 시작';
+      setAnalyzingUi(false); resetAudio();
+    },
+    isBusy(){ return recording || requesting || loader.classList.contains('show') || !!pendingAnalyzeTimer; }
+  };
+  function onFileSelected(e){
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      alert('음성 파일을 선택해 주세요.');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert('8MB 이하의 짧은 음성 파일을 선택해 주세요.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      const base64 = dataUrl.split(',')[1] || '';
+      receiveAudio({base64, mimeType:file.type || 'audio/webm', durationMs:0, blob:file});
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function receiveAudio(data){
+    audioFile.disabled=false;
+    audioBase64 = data.base64 || '';
+    audioMimeType = data.mimeType || 'audio/webm';
+    audioDurationMs = Number(data.durationMs || 0);
+
+    if (!audioBase64) {
+      setStatus('녹음 확인 필요', '음성 데이터가 전달되지 않았습니다.', false);
+      return;
+    }
+
+    try {
+      const blob = data.blob || base64ToBlob(audioBase64, audioMimeType);
+      if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+      audioObjectUrl = URL.createObjectURL(blob);
+      audioPreview.src = audioObjectUrl;
+      audioPreview.style.display = 'block';
+    } catch(e) {
+      audioPreview.style.display = 'none';
+    }
+
+    $('#micOrb').classList.remove('ready');
+    $('#micOrb').classList.add('has-audio');
+    $('#micOrb').textContent = '✅';
+    const sec = audioDurationMs ? ' (' + (audioDurationMs/1000).toFixed(1) + '초)' : '';
+    setStatus('녹음 완료' + sec, '음성을 들어 본 뒤 AI 분석하기 버튼을 눌러 주세요.', true);
+    analyzeBtn.disabled = false;
+    resetBtn.disabled = false;
+    resultEl.classList.remove('show');
+  }
+
+  function resetAudio(){
+    audioFile.disabled=false;
+    cancelPendingAnalyze();
+    analysisRunId++;
+    hideAnalysisError();
+    audioBase64 = '';
+    audioMimeType = '';
+    audioDurationMs = 0;
+    activeSessionId = '';
+    audioFile.value = '';
+    if (audioObjectUrl) URL.revokeObjectURL(audioObjectUrl);
+    audioObjectUrl = '';
+    audioPreview.removeAttribute('src');
+    audioPreview.style.display = 'none';
+    $('#micOrb').className = 'mic-orb ready';
+    $('#micOrb').textContent = '🎤';
+    setStatus('녹음 준비', '녹음 시작을 누르고 마이크 사용을 허용해 주세요.', false);
+    analyzeBtn.disabled = true;
+    resetBtn.disabled = true;
+    resultEl.classList.remove('show');
+    stopLoader();
+  }
+
+  function analyze(){
+    beginAnalyze(false);
+  }
+
+  function beginAnalyze(isManualRetry){
+    if (!audioBase64) return;
+
+    cancelPendingAnalyze();
+    hideAnalysisError();
+    resultEl.classList.remove('show');
+
+    const runId = ++analysisRunId;
+    busyRetryCount = 0;
+    transientRetryCount = 0;
+    setAnalyzingUi(true);
+    startLoader();
+
+    const classroom = (appConfig && appConfig.classroom) || {};
+    const minMs = Number(classroom.jitterMinMs || 0);
+    const maxMs = Number(classroom.jitterMaxMs || 0);
+    const delay = isManualRetry
+      ? randomBetween(350, 1400)
+      : randomBetween(Math.max(0, minMs), Math.max(minMs, maxMs));
+
+    if (delay >= 800) {
+      $('#loaderText').textContent = '30명 동시 접속을 위해 요청 시간을 분산하고 있어요. 잠시만 기다려 주세요.';
+    }
+
+    pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+  }
+
+  function invokeAnalysis(runId){
+    if (runId !== analysisRunId || !audioBase64) return;
+    pendingAnalyzeTimer = null;
+    $('#loaderText').textContent = 'AI 서버에 음성을 보내고 있어요. 혼잡하면 예비 모델로 자동 전환합니다.';
+
+    rpc()
+      .withSuccessHandler(res => handleAnalyzeResponse(runId, res))
+      .withFailureHandler(err => {
+        if (runId !== analysisRunId) return;
+        finishAnalyzeUi();
+        showAnalysisError(
+          '분석 요청을 전송하지 못했습니다.',
+          'Apps Script 연결이 일시적으로 원활하지 않습니다. 녹음은 유지되어 있으니 같은 음성으로 다시 분석해 주세요.'
+        );
+      })
+      .analyzeAudio({
+        audioBase64,
+        mimeType: audioMimeType,
+        durationMs: audioDurationMs,
+        activityPrompt: selectedPrompt,
+        sessionId: activeSessionId
+      });
+  }
+
+  function handleAnalyzeResponse(runId, res){
+    if (runId !== analysisRunId) return;
+    res = res || {};
+    const classroom = (appConfig && appConfig.classroom) || {};
+
+    // 서버의 8개 분석 슬롯이 모두 사용 중이면 녹음을 유지한 채 자동 대기/재시도
+    if (res.busy) {
+      const maxBusyRetry = Number(classroom.busyRetryMax || 8);
+      if (busyRetryCount < maxBusyRetry) {
+        busyRetryCount++;
+        const delay = Math.max(1200, Number(res.retryAfterMs || 3000)) + randomBetween(0, 1200);
+        $('#loaderText').textContent = '친구들의 음성을 순서대로 처리 중이에요. 자동 재시도 ' + busyRetryCount + '/' + maxBusyRetry;
+        pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+        return;
+      }
+
+      finishAnalyzeUi();
+      showAnalysisError(
+        '현재 분석 요청이 많이 몰렸어요.',
+        '녹음은 그대로 유지되어 있습니다. 잠시 뒤 아래 버튼으로 같은 음성을 다시 분석해 주세요.'
+      );
+      return;
+    }
+
+    // 1순위 + 예비 모델까지 모두 일시적으로 실패한 경우, 클라이언트에서 한 번 더 분산 재시도
+    if (!res.ok && res.retryable) {
+      const maxTransientRetry = Number(classroom.transientRetryMax || 1);
+      if (transientRetryCount < maxTransientRetry) {
+        transientRetryCount++;
+        const delay = Math.max(4500, Number(res.retryAfterMs || 6500)) + randomBetween(0, 1500);
+        $('#loaderText').textContent = 'AI 서버가 혼잡해 잠시 기다린 뒤 예비 모델까지 다시 확인하고 있어요.';
+        pendingAnalyzeTimer = setTimeout(() => invokeAnalysis(runId), delay);
+        return;
+      }
+    }
+
+    if (!res.ok) {
+      finishAnalyzeUi();
+      showAnalysisError(
+        res.retryable ? 'AI 서버가 아직 혼잡합니다.' : 'AI 분석 중 확인이 필요한 문제가 있습니다.',
+        res.error || '잠시 후 다시 시도해 주세요.'
+      );
+      return;
+    }
+
+    finishAnalyzeUi();
+    renderResult(res.data, res.meta);
+  }
+
+  function setAnalyzingUi(on){
+    analyzeBtn.disabled = on;
+    recordBtn.disabled = on;
+    resetBtn.disabled = on || !audioBase64;
+    audioFile.disabled = on;
+  }
+
+  function finishAnalyzeUi(){
+    stopLoader();
+    setAnalyzingUi(false);
+  }
+
+  function cancelPendingAnalyze(){
+    if (pendingAnalyzeTimer) clearTimeout(pendingAnalyzeTimer);
+    pendingAnalyzeTimer = null;
+  }
+
+  function showAnalysisError(title, text){
+    $('#analysisAlertTitle').textContent = title || '분석을 완료하지 못했습니다.';
+    $('#analysisAlertText').textContent = text || '잠시 후 다시 시도해 주세요.';
+    analysisAlert.classList.add('show');
+  }
+
+  function hideAnalysisError(){
+    analysisAlert.classList.remove('show');
+    $('#analysisAlertText').textContent = '';
+  }
+
+  function renderResult(d, meta){
+    d = d || {};
+    meta = meta || {};
+    $('#primaryLabel').textContent = d.primaryLabel || '판별 어려움';
+    if (meta.model) {
+      const tries = Number(meta.requestCount || 0);
+      const prefix = meta.fallbackUsed ? '예비 AI 모델 사용' : '분석 모델';
+      $('#modelMeta').textContent = prefix + ' · ' + humanModelName(meta.model) + (tries > 1 ? ' · 서버 요청 ' + tries + '회' : '');
+    } else {
+      $('#modelMeta').textContent = '';
+    }
+    $('#confidence').textContent = '신뢰도 · ' + (d.confidence || '낮음');
+    $('#transcript').textContent = d.transcript || '';
+    $('#acoustic').textContent = d.acousticObservation || '';
+    $('#standardVersion').textContent = d.standardVersion || '';
+    $('#summary').textContent = d.summary || '';
+    $('#caution').textContent = (d.caution || '') + (meta && meta.audioSaved === false ? ' · 이 앱 코드는 음성 파일을 별도 저장하지 않습니다.' : '');
+
+    const labels = [
+      ['standard','표준어'],['gyeongsang','경상'],['jeolla','전라'],
+      ['chungcheong','충청'],['gangwon','강원'],['jeju','제주']
+    ];
+    const scores = d.scores || {};
+    $('#scoreGrid').innerHTML = labels.map(([key,name]) => {
+      const v = Math.max(0, Math.min(100, Number(scores[key] || 0)));
+      return `<div class="score-row"><div class="score-name">${name}</div><div class="bar"><i style="width:${v}%"></i></div><div class="score-val">${v}%</div></div>`;
+    }).join('');
+
+    const fs = Array.isArray(d.features) ? d.features : [];
+    $('#features').innerHTML = fs.length
+      ? fs.map(f => `<div class="feature"><div class="feature-top"><span class="tag">${esc(f.category || '특징')}</span><span class="evidence">${esc(f.evidence || '')}</span></div><div class="explain">${esc(f.explanation || '')}</div></div>`).join('')
+      : '<div class="info-box">이번 짧은 발화에서는 뚜렷한 지역 방언 근거를 찾기 어려웠습니다.</div>';
+
+    resultEl.classList.add('show');
+    setTimeout(() => resultEl.scrollIntoView({behavior:'smooth', block:'start'}), 50);
+  }
+
+  function startLoader(){
+    loader.classList.add('show');
+    const msgs = [
+      '친구들의 요청이 겹치지 않도록 순서를 조정하는 중...',
+      '음성을 듣고 문장을 확인하는 중...',
+      '어휘와 어미 특징을 살펴보는 중...',
+      '혼잡하면 예비 AI 모델로 자동 전환하는 중...',
+      '발음과 억양 특징을 종합하는 중...',
+      '학생용 설명을 정리하는 중...'
+    ];
+    let i = 0;
+    $('#loaderText').textContent = msgs[0];
+    loaderTimer = setInterval(() => {
+      i = (i + 1) % msgs.length;
+      $('#loaderText').textContent = msgs[i];
+    }, 1500);
+  }
+
+  function stopLoader(){
+    loader.classList.remove('show');
+    if (loaderTimer) clearInterval(loaderTimer);
+    loaderTimer = null;
+  }
+
+  function setStatus(title, text, hasAudio){
+    $('#statusTitle').textContent = title;
+    $('#statusText').textContent = text;
+    if (hasAudio) $('#micOrb').classList.add('has-audio');
+  }
+
+  function base64ToBlob(base64, mime){
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], {type:mime || 'audio/webm'});
+  }
+
+  function makeSessionId(){
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+  }
+
+  function esc(v){
+    return String(v == null ? '' : v)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+  }
+
+  function randomBetween(min, max){
+    min = Math.ceil(Number(min) || 0);
+    max = Math.floor(Number(max) || min);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function humanModelName(model){
+    const map = {
+      'gemini-3.8-flash':'Gemini 3.8 Flash',
+      'gemini-3.7-flash':'Gemini 3.7 Flash',
+      'gemini-3.6-flash':'Gemini 3.6 Flash',
+      'gemini-3.5-flash':'Gemini 3.5 Flash',
+      'gemini-3.5-flash-lite':'Gemini 3.5 Flash-Lite'
+    };
+    return map[model] || String(model || '');
+  }
+
+  function getErr(err){
+    return err && err.message ? err.message : String(err || '알 수 없는 오류');
+  }
+})();
+</script>
+<script>
+/* ===== 말씨탐정 체험부스: 대기 화면 · 데모 · 무입력 자동 복귀 ===== */
+(() => {
+  const BOOTH = {
+    idleMs: 60000,          // 녹음 화면에서 아무 동작이 없을 때 안내까지 걸리는 시간
+    idleMsWithResult: 90000,// 결과를 읽는 중일 때는 조금 더 길게
+    warnSec: 10,            // 처음 화면으로 돌아가기 전 안내 시간(초)
+    autoFullscreen: !/[?&]fs=0\b/.test(location.search)
+  };
+  const DEMOS = [
+    {who:'경상도 친구', avatar:'🧒', situation:'친구에게 안부 묻기', text:'니 밥 뭇나? 퍼뜩 온나!', verdict:'경상 방언 특징', top:'gyeongsang',
+      scores:{standard:14,gyeongsang:82,jeolla:9,chungcheong:6,gangwon:11,jeju:3}, clue:'🔎 단서: “뭇나(먹었니)”, “퍼뜩(빨리)” 같은 어휘와 의문형 어미 “-나”'},
+    {who:'전라도 친구', avatar:'👧', situation:'오늘 있었던 일', text:'워메, 오늘 겁나게 덥당께.', verdict:'전라 방언 특징', top:'jeolla',
+      scores:{standard:12,gyeongsang:8,jeolla:84,chungcheong:13,gangwon:5,jeju:2}, clue:'🔎 단서: 감탄사 “워메”, “겁나게(매우)”, 종결 어미 “-당께”'},
+    {who:'선생님', avatar:'🧑‍🏫', situation:'좋아하는 것 소개하기', text:'저는 비 오는 날 도서관에 가는 걸 좋아해요.', verdict:'표준어에 가까움', top:'standard',
+      scores:{standard:88,gyeongsang:7,jeolla:5,chungcheong:9,gangwon:6,jeju:2}, clue:'🔎 단서: 표준 어휘와 “-해요” 어미, 지역 방언 특징이 거의 없음'},
+    {who:'충청도 친구', avatar:'🧑', situation:'함께 놀자고 제안하기', text:'그려유, 천천히 해도 되유~', verdict:'충청 방언 특징', top:'chungcheong',
+      scores:{standard:15,gyeongsang:4,jeolla:12,chungcheong:81,gangwon:9,jeju:2}, clue:'🔎 단서: “그려유”, “되유”처럼 끝을 늘이는 “-유” 어미'},
+    {who:'제주도 친구', avatar:'👦', situation:'친구에게 부탁하기', text:'혼저 옵서예, 이거 좀 도와줍서.', verdict:'제주 방언 특징', top:'jeju',
+      scores:{standard:6,gyeongsang:5,jeolla:7,chungcheong:3,gangwon:4,jeju:90}, clue:'🔎 단서: “혼저 옵서예(어서 오세요)”, 명령형 어미 “-ㅂ서”'},
+    {who:'강원도 친구', avatar:'🧒', situation:'친구에게 안부 묻기', text:'어디 가드래요? 같이 가요.', verdict:'강원 방언 특징', top:'gangwon',
+      scores:{standard:28,gyeongsang:9,jeolla:6,chungcheong:12,gangwon:74,jeju:3}, clue:'🔎 단서: 의문형 어미 “-드래요”'}
+  ];
+  const LABELS = [['standard','표준어'],['gyeongsang','경상'],['jeolla','전라'],['chungcheong','충청'],['gangwon','강원'],['jeju','제주']];
+  const BUBBLE_WORDS = ['밥 뭇나?','혼저 옵서예','그려유~','겁나게 좋당께','어디 가드래요?','퍼뜩 온나','안녕하세요!','괜찮아유','워메!','고맙수다','~했어요','정구지','하모!','거시기','욕봤다','~하우다'];
+
+  const $ = s => document.querySelector(s);
+  const attract = $('#attract'), demo = $('#demo'), toast = $('#idleToast');
+  let demoIdx = 0, demoTimers = [], demoRunning = false, waveTimer = null;
+  let idleTimer = null, warnTimer = null, warnLeft = 0, inAttract = true;
+
+  // ---------- 떠다니는 말풍선 ----------
+  const bubbles = $('#bubbles');
+  BUBBLE_WORDS.forEach((w, i) => {
+    const b = document.createElement('span');
+    b.className = 'bubble';
+    b.textContent = w;
+    const dur = 16 + Math.random() * 12;
+    b.style.left = (3 + (i * 6.1) % 92) + '%';
+    b.style.fontSize = (15 + Math.random() * 10).toFixed(0) + 'px';
+    b.style.animationDuration = dur.toFixed(1) + 's';
+    b.style.animationDelay = (-Math.random() * dur).toFixed(1) + 's';
+    bubbles.append(b);
+  });
+
+  // ---------- 데모 애니메이션 ----------
+  const wave = $('#wave');
+  for (let i = 0; i < 28; i++) wave.append(document.createElement('span'));
+  $('#demoDots').innerHTML = DEMOS.map(() => '<i></i>').join('');
+
+  function later(fn, ms){ demoTimers.push(setTimeout(fn, ms)); }
+  function clearDemo(){ demoTimers.forEach(clearTimeout); demoTimers = []; clearInterval(waveTimer); waveTimer = null; }
+  function animateWave(on){
+    clearInterval(waveTimer); waveTimer = null;
+    const bars = [...wave.children];
+    if (!on) { bars.forEach(s => s.style.height = '8px'); return; }
+    waveTimer = setInterval(() => bars.forEach((s, i) => {
+      const h = 10 + Math.abs(Math.sin(Date.now() / 180 + i * .7)) * 34 + Math.random() * 14;
+      s.style.height = h.toFixed(0) + 'px';
+    }), 110);
+  }
+
+  function playDemo(){
+    if (!demoRunning) return;
+    clearDemo();
+    const d = DEMOS[demoIdx];
+    [...$('#demoDots').children].forEach((el, i) => el.classList.toggle('on', i === demoIdx));
+    $('#demoAvatar').textContent = d.avatar;
+    $('#demoWho').textContent = d.who;
+    $('#demoSituation').textContent = d.situation;
+    $('#demoVerdict').textContent = d.verdict;
+    $('#demoClue').innerHTML = escHtml(d.clue).replace(/“[^”]*”/g, m => '<span style="white-space:nowrap">' + m + '</span>');
+    $('#demoBars').innerHTML = LABELS.map(([k, n]) =>
+      `<div class="r${k === d.top ? ' top' : ''}"><span>${n}</span><span class="b"><i data-v="${d.scores[k]}"></i></span><span class="v">${d.scores[k]}%</span></div>`).join('');
+    const speech = $('#demoSpeech');
+    speech.innerHTML = '<span class="caret"></span>';
+    demo.className = 'demo s-rec';
+    animateWave(true);
+
+    // 1) 말하는 장면: 글자가 한 글자씩 나타남
+    const chars = [...d.text];
+    const step = Math.max(70, Math.min(130, 2600 / chars.length));
+    chars.forEach((c, i) => later(() => {
+      speech.innerHTML = '“' + escHtml(chars.slice(0, i + 1).join('')) + '<span class="caret"></span>';
+    }, 350 + i * step));
+    const spoken = 350 + chars.length * step + 500;
+
+    // 2) 분석 장면
+    later(() => {
+      speech.textContent = '“' + d.text + '”';
+      animateWave(false);
+      demo.className = 'demo s-scan';
+    }, spoken);
+
+    // 3) 결과 장면: 막대가 차오름
+    later(() => {
+      demo.className = 'demo s-result';
+      requestAnimationFrame(() => $('#demoBars').querySelectorAll('i').forEach(i => i.style.width = i.dataset.v + '%'));
+    }, spoken + 1700);
+
+    // 4) 다음 예시
+    later(() => { demoIdx = (demoIdx + 1) % DEMOS.length; playDemo(); }, spoken + 1700 + 4600);
+  }
+  function startDemo(){ if (demoRunning) return; demoRunning = true; playDemo(); }
+  function stopDemo(){ demoRunning = false; clearDemo(); }
+  function escHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ---------- 시작 / 처음으로 ----------
+  function enterFullscreen(){
+    const el = document.documentElement;
+    if (!BOOTH.autoFullscreen || document.fullscreenElement || !el.requestFullscreen) return;
+    el.requestFullscreen({navigationUI:'hide'}).catch(() => {});
+  }
+  function startExperience(){
+    if (!inAttract) return;
+    inAttract = false;
+    enterFullscreen();
+    attract.classList.add('hide');
+    stopDemo();
+    window.scrollTo(0, 0);
+    armIdle();
+    setTimeout(() => document.getElementById('recordBtn')?.focus({preventScroll:true}), 350);
+  }
+  function goAttract(){
+    hideWarn();
+    clearTimeout(idleTimer);
+    if (window.MalssiApp) window.MalssiApp.reset();
+    window.scrollTo(0, 0);
+    inAttract = true;
+    attract.classList.remove('hide');
+    attract.focus({preventScroll:true});
+    startDemo();
+  }
+  attract.addEventListener('click', startExperience);
+  attract.addEventListener('keydown', e => {
+    if ([' ', 'Enter', 'Spacebar'].includes(e.key)) { e.preventDefault(); startExperience(); }
+  });
+  document.addEventListener('keydown', e => {
+    if (inAttract && [' ', 'Enter'].includes(e.key) && document.activeElement !== attract) { e.preventDefault(); startExperience(); }
+  });
+  $('#homeBtn')?.addEventListener('click', goAttract);
+  $('#fullscreenBtn')?.addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen?.({navigationUI:'hide'}).catch(() => {});
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const b = $('#fullscreenBtn'); if (b) b.textContent = document.fullscreenElement ? '⤡ 전체화면 끄기' : '⤢ 전체화면';
+  });
+
+  // ---------- 무입력 자동 복귀 ----------
+  function idleLimit(){ return document.getElementById('result')?.classList.contains('show') ? BOOTH.idleMsWithResult : BOOTH.idleMs; }
+  function armIdle(){
+    clearTimeout(idleTimer);
+    if (inAttract) return;
+    idleTimer = setTimeout(onIdle, idleLimit());
+  }
+  function onIdle(){
+    if (inAttract) return;
+    // 녹음 중이거나 AI 분석 중이면 기다렸다가 다시 확인
+    if (window.MalssiApp && window.MalssiApp.isBusy()) { idleTimer = setTimeout(onIdle, 5000); return; }
+    warnLeft = BOOTH.warnSec;
+    $('#idleCount').textContent = warnLeft;
+    toast.classList.add('show');
+    warnTimer = setInterval(() => {
+      warnLeft--;
+      $('#idleCount').textContent = Math.max(0, warnLeft);
+      if (warnLeft <= 0) goAttract();
+    }, 1000);
+  }
+  function hideWarn(){ clearInterval(warnTimer); warnTimer = null; toast.classList.remove('show'); }
+  function activity(){ if (inAttract) return; hideWarn(); armIdle(); }
+  ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach(ev => document.addEventListener(ev, activity, {passive:true, capture:true}));
+  $('#idleStay').addEventListener('click', activity);
+
+  // 처음 열면 대기 화면부터
+  attract.focus({preventScroll:true});
+  startDemo();
+  document.addEventListener('visibilitychange', () => { if (!inAttract) return; document.hidden ? stopDemo() : startDemo(); });
+})();
+</script>
+</body>
+</html>
